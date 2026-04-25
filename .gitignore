@@ -35,5 +35,5 @@ __marimo__/
 .cache/
 10d5e9aef715a85fe4ab51b773223101b644c927f83cd0db969320b3672cfa6d/
 tiles/
-*.png
+/*.png
 skills-lock.json
