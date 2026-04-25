@@ -24,7 +24,7 @@ const INITIAL_VIEW_DIR = new THREE.Vector3(0.52, 0.46, 0.72).normalize();
 
 // Orbit zoom vs framing distance (initial camera sits ~fitDistance from target).
 const ZOOM_MIN_FACTOR = 0.045;
-const ZOOM_MAX_FACTOR = 0.1;
+const ZOOM_MAX_FACTOR = 0.3;
 // Stream tiles by distance to camera (radii derived from camera.far + tile grid size).
 const TILE_LOAD_FAR_MUL = 1.06;
 const TILE_UNLOAD_MUL = 1.38;
