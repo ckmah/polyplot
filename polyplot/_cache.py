@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 # Bump when tile format / mesh pipeline changes invalidate old caches.
-_CACHE_VERSION = b"polyplot_cache_v3\n"
+_CACHE_VERSION = b"polyplot_cache_v5\n"
 
 # SHA256 hex directory names under the cache root.
 _SHA256_DIR = re.compile(r"^[0-9a-f]{64}$")

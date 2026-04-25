@@ -375,19 +375,21 @@ function DemandInvalidate({ opacity }) {
 
 function _makeMaterial(wireframe, opacity) {
   const a = opacity == null ? 1 : Math.min(1, Math.max(0, opacity));
-  // MeshPhysicalMaterial adds a thin clearcoat + sheen for depth in shading
-  // (cheap against the cost of the cells' relatively low triangle counts).
+  // MeshPhysicalMaterial adds a thin clearcoat + sheen for depth in shading.
+  // Clearcoat/sheen amplify any per-face normal difference, which otherwise
+  // makes earcut sliver tris on flat caps visible under PBR — kept subtle.
+  // Meshes are watertight, so FrontSide is safe and halves shading work.
   return new THREE.MeshPhysicalMaterial({
     vertexColors: true,
     wireframe: !!wireframe,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
     metalness: 0.05,
-    roughness: 0.48,
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.55,
-    sheen: 0.15,
-    sheenRoughness: 0.8,
-    envMapIntensity: 0.75,
+    roughness: 0.55,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.7,
+    sheen: 0.08,
+    sheenRoughness: 0.85,
+    envMapIntensity: 0.7,
     flatShading: false,
     transparent: a < 1,
     opacity: a,
@@ -534,7 +536,13 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
         const { wireframe: wf, opacity: op } = propsRef.current;
         gltf.scene.traverse((obj) => {
           if (!obj.isMesh) return;
-          obj.geometry.computeVertexNormals();
+          // GLBs ship explicit NORMALs (cap = ±Z, side = area-weighted) so the
+          // renderer does not need to recompute. Meshopt position quantization
+          // would otherwise leak into face normals and produce faint radial
+          // streaks on flat caps. Fall back only if normals are missing.
+          if (!obj.geometry.attributes.normal) {
+            obj.geometry.computeVertexNormals();
+          }
           obj.material = _makeMaterial(wf, op);
           obj.material.transparent = true;
           obj.material.opacity = 0;

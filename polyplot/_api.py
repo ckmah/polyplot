@@ -92,39 +92,9 @@ def meshify(
 
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # Fixed internal quality defaults (not exposed on the public API).
-    smooth_iters = 1 if smooth else 0
-    smooth_factor = 0.5
-    simplify_tol = 0.5
-    z_scale = 2.0
-    color = "#4aa3ff"
-    target_tile_mb = 100.0
-    tile_size_xy = None
-    compress = True
-    ring_target = 48
-
-    gdf_render = preprocess_gdf(gdf, simplify_tol)
-    cfg = {
-        "z_scale": z_scale,
-        "smooth_iters": smooth_iters,
-        "smooth_factor": smooth_factor,
-        "mesh_color": color,
-        "ring_target": ring_target,
-        "ring_curvature_base": 0.28,
-        "ring_adaptive": True,
-        "ring_adaptive_min_mul": 0.55,
-        "ring_adaptive_max_mul": 2.25,
-        "ring_adaptive_exponent": 0.75,
-    }
-    tiles_info = export_tiles(
-        gdf_render,
-        cfg,
-        cache_dir,
-        tile_size_xy=tile_size_xy,
-        target_tile_mb=target_tile_mb,
-        compress=compress,
-        show_progress=show_progress,
-    )
+    gdf_render = preprocess_gdf(gdf)
+    cfg = {"smooth_iters": 1 if smooth else 0}
+    tiles_info = export_tiles(gdf_render, cfg, cache_dir, show_progress=show_progress)
     out = cast(
         MeshifyInfo,
         {
@@ -145,6 +115,7 @@ def plot(
     smooth: bool = True,
     max_concurrent_fetches: int = 4,
     use_cache: bool = True,
+    show_progress: bool = True,
 ) -> MarimoAnywidgetUI:
     """Open the 3D viewer for ``gdf``, building from cache or exporting first.
 
@@ -157,6 +128,7 @@ def plot(
         smooth: If ``True``, apply 3D Taubin smoothing; if ``False``, none.
         max_concurrent_fetches: Maximum parallel HTTP fetches for tile GLBs.
         use_cache: Forwarded to :func:`meshify`.
+        show_progress: Forwarded to :func:`meshify`.
 
     Returns:
         A marimo ``anywidget`` UI element wrapping :class:`~polyplot.PolyFiberWidget`.
@@ -170,7 +142,7 @@ def plot(
         ".polyplot",
         smooth=smooth,
         use_cache=use_cache,
-        show_progress=False,
+        show_progress=show_progress,
     )
     srv = get_or_start(Path(tiles_info["out_dir"]))
     widget_model = PolyFiberWidget(

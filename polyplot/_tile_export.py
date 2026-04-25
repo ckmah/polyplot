@@ -36,11 +36,14 @@ def _build_glb_bytes(
     positions_f32: np.ndarray,   # (N, 3) float32
     indices_u32: np.ndarray,     # (M*3,) uint32
     colors_rgb_f32: np.ndarray,  # (N, 3) float32 in [0, 1]
+    normals_f32: np.ndarray,     # (N, 3) float32, unit length
 ) -> bytes:
     """Pack mesh data into a binary GLB (glTF 2.0).
 
     COLOR_0 is written as VEC4 UNSIGNED_BYTE with normalized=True, which is
-    what Three.js GLTFLoader expects for per-vertex vertex colors.
+    what Three.js GLTFLoader expects for per-vertex vertex colors. NORMAL is
+    written as VEC3 FLOAT so the renderer can skip ``computeVertexNormals()``
+    (avoids shading artifacts on flat caps once meshopt quantizes positions).
     """
     import pygltflib
 
@@ -50,16 +53,18 @@ def _build_glb_bytes(
     colors_rgba = np.ones((n_verts, 4), dtype=np.uint8)
     colors_rgba[:, :3] = (colors_rgb_f32 * 255).clip(0, 255).astype(np.uint8)
 
-    # Binary blob layout: [positions][indices][colors] — each part is naturally
-    # 4-byte aligned (float32 × 3, uint32, uint8 × 4).
+    # Binary blob layout: [positions][indices][colors][normals] — each part is
+    # naturally 4-byte aligned (float32 × 3, uint32, uint8 × 4, float32 × 3).
     pos_blob = positions_f32.tobytes()
     idx_blob = indices_u32.tobytes()
     col_blob = colors_rgba.tobytes()
-    blob = pos_blob + idx_blob + col_blob
+    nrm_blob = normals_f32.astype(np.float32, copy=False).tobytes()
+    blob = pos_blob + idx_blob + col_blob + nrm_blob
 
     p_off, p_len = 0, len(pos_blob)
     i_off, i_len = p_len, len(idx_blob)
     c_off, c_len = p_len + i_len, len(col_blob)
+    n_off, n_len = p_len + i_len + c_len, len(nrm_blob)
 
     gltf = pygltflib.GLTF2(
         scene=0,
@@ -67,7 +72,7 @@ def _build_glb_bytes(
         nodes=[pygltflib.Node(mesh=0)],
         meshes=[pygltflib.Mesh(primitives=[
             pygltflib.Primitive(
-                attributes=pygltflib.Attributes(POSITION=0, COLOR_0=2),
+                attributes=pygltflib.Attributes(POSITION=0, COLOR_0=2, NORMAL=3),
                 indices=1,
                 mode=pygltflib.TRIANGLES,
             )
@@ -94,6 +99,12 @@ def _build_glb_bytes(
                 type=pygltflib.VEC4,
                 normalized=True,    # required — without this Three reads 0-255 as-is
             ),
+            pygltflib.Accessor(                      # 3: NORMAL
+                bufferView=3,
+                componentType=pygltflib.FLOAT,
+                count=n_verts,
+                type=pygltflib.VEC3,
+            ),
         ],
         bufferViews=[
             pygltflib.BufferView(
@@ -106,6 +117,10 @@ def _build_glb_bytes(
             ),
             pygltflib.BufferView(
                 buffer=0, byteOffset=c_off, byteLength=c_len,
+                target=pygltflib.ARRAY_BUFFER,
+            ),
+            pygltflib.BufferView(
+                buffer=0, byteOffset=n_off, byteLength=n_len,
                 target=pygltflib.ARRAY_BUFFER,
             ),
         ],
@@ -194,10 +209,10 @@ def _build_tile_data(
     Returns (glb_bytes, bbox) where bbox is [minX, minY, minZ, maxX, maxY, maxZ].
     Returns (b"", None) if no valid cell meshes were produced.
     """
-    z_scale = cfg["z_scale"]
-    smooth_iters = cfg["smooth_iters"]
-    smooth_factor = cfg.get("smooth_factor", 0.3)
-    ring_target = cfg.get("ring_target")
+    z_scale = cfg.get("z_scale", 2.0)
+    smooth_iters = cfg.get("smooth_iters", 1)
+    smooth_factor = cfg.get("smooth_factor", 0.5)
+    ring_target = cfg.get("ring_target", 48)
     ring_cb = float(cfg.get("ring_curvature_base", 0.28))
     n_by_cid = _adaptive_ring_targets_for_cells(
         cell_ids,
@@ -212,13 +227,14 @@ def _build_tile_data(
 
     pos_parts: list[np.ndarray] = []
     idx_parts: list[np.ndarray] = []
+    nrm_parts: list[np.ndarray] = []
     col_parts: list[np.ndarray] = []
     all_bboxes: list[tuple] = []
     vert_offset = 0
 
     for cell_id in cell_ids:
         rt = ring_target if n_by_cid is None else n_by_cid[cell_id]
-        pos, idx, bbox = build_loft_mesh(
+        pos, idx, nrm, bbox = build_loft_mesh(
             cell_gdfs[cell_id],
             z_scale,
             smooth_iters,
@@ -232,6 +248,7 @@ def _build_tile_data(
         r, g, b = cell_colors[cell_id]
         pos_parts.append(pos)
         idx_parts.append(idx + vert_offset)
+        nrm_parts.append(nrm)
         rgb = np.empty((nv, 3), dtype=np.float32)
         rgb[:, 0] = r
         rgb[:, 1] = g
@@ -245,9 +262,10 @@ def _build_tile_data(
 
     positions_arr = np.vstack(pos_parts).astype(np.float32, copy=False)
     indices_arr = np.concatenate(idx_parts).astype(np.uint32, copy=False)
+    normals_arr = np.vstack(nrm_parts).astype(np.float32, copy=False)
     colors_arr = np.vstack(col_parts).astype(np.float32, copy=False)
 
-    glb = _build_glb_bytes(positions_arr, indices_arr, colors_arr)
+    glb = _build_glb_bytes(positions_arr, indices_arr, colors_arr, normals_arr)
 
     b_arr = np.array(all_bboxes)
     bbox = [

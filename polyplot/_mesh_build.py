@@ -423,62 +423,230 @@ def cell_color(i: int) -> tuple[float, float, float]:
 
 
 # ---------------------------------------------------------------------------
+# Cap triangulation (Delaunay + polygon filter) and vertex normals
+# ---------------------------------------------------------------------------
+
+def _cap_tris_earcut(ring_xy: np.ndarray) -> np.ndarray:
+    """Ear-clipping triangulation of a simple ring. Returns (M, 3) local indices."""
+    import mapbox_earcut as earcut
+
+    v2d = np.ascontiguousarray(ring_xy, dtype=np.float32)
+    rings = np.array([len(ring_xy)], dtype=np.uint32)
+    tris = earcut.triangulate_float32(v2d, rings)
+    return np.asarray(tris, dtype=np.int64).reshape(-1, 3)
+
+
+def _in_circumcircle(a: np.ndarray, b: np.ndarray, c: np.ndarray,
+                     d: np.ndarray) -> bool:
+    """Strict Delaunay in-circle test for a CCW-oriented triangle (a, b, c).
+
+    Returns True iff point ``d`` lies strictly inside the circumcircle of
+    ``a, b, c``. Uses the standard 3x3 determinant.
+    """
+    ax, ay = a[0] - d[0], a[1] - d[1]
+    bx, by = b[0] - d[0], b[1] - d[1]
+    cx, cy = c[0] - d[0], c[1] - d[1]
+    det = (
+        (ax * ax + ay * ay) * (bx * cy - by * cx)
+        - (bx * bx + by * by) * (ax * cy - ay * cx)
+        + (cx * cx + cy * cy) * (ax * by - ay * bx)
+    )
+    return det > 1e-12
+
+
+def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
+    """Constrained Delaunay-like triangulation of a simple ring.
+
+    Earcut gives a topologically valid triangulation (exactly ``n - 2``
+    triangles, no overlaps, respects boundary) but shaped as a radial fan which
+    shows up as a visible "star" on flat caps under PBR. We refine it with
+    Lawson edge flips until the triangulation is locally Delaunay — same
+    triangle count, same boundary, much better-shaped triangles.
+
+    Plain Delaunay on the ring vertices is tempting but unusable here: it
+    triangulates the convex hull, and a centroid-in-polygon filter leaks
+    overlapping triangles across shallow concavities.
+    """
+    from collections import defaultdict
+
+    n = len(ring_xy)
+    if n < 3:
+        return np.zeros((0, 3), dtype=np.int64)
+
+    tris = _cap_tris_earcut(ring_xy)
+    if tris.shape[0] == 0:
+        return tris
+    pts = np.ascontiguousarray(ring_xy, dtype=np.float64)
+
+    # Normalize winding to CCW so the in-circle test's orientation is consistent.
+    v0, v1, v2 = pts[tris[:, 0]], pts[tris[:, 1]], pts[tris[:, 2]]
+    cross_z = (v1[:, 0] - v0[:, 0]) * (v2[:, 1] - v0[:, 1]) - \
+              (v1[:, 1] - v0[:, 1]) * (v2[:, 0] - v0[:, 0])
+    flip = cross_z < 0
+    tris[flip] = tris[flip][:, [0, 2, 1]]
+
+    # Lawson flipping: up to O(n^2) flips in worst case; tiny n (<=128).
+    max_passes = 4 * n
+    for _ in range(max_passes):
+        edge_to_tri: dict[tuple[int, int], list[int]] = defaultdict(list)
+        for ti, t in enumerate(tris):
+            for a, b in ((int(t[0]), int(t[1])),
+                         (int(t[1]), int(t[2])),
+                         (int(t[2]), int(t[0]))):
+                key = (a, b) if a < b else (b, a)
+                edge_to_tri[key].append(ti)
+
+        did_flip = False
+        for (a, b), adj in edge_to_tri.items():
+            if len(adj) != 2:
+                continue
+            t0i, t1i = adj
+            t0 = tris[t0i].tolist()
+            t1 = tris[t1i].tolist()
+            c = next(x for x in t0 if x != a and x != b)
+            d = next(x for x in t1 if x != a and x != b)
+
+            # Skip if the quadrilateral (a, c, b, d) is non-convex — flipping
+            # would produce a triangle outside the current coverage.
+            def _ccw(p, q, r):
+                return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+            pa, pb, pc, pd = pts[a], pts[b], pts[c], pts[d]
+            if _ccw(pa, pc, pb) * _ccw(pa, pd, pb) >= 0:
+                continue
+            if _ccw(pc, pa, pd) * _ccw(pc, pb, pd) >= 0:
+                continue
+
+            # Delaunay condition: d must lie outside circumcircle of t0.
+            # Re-order t0 to CCW(a, b, c) for the in-circle test.
+            if _ccw(pa, pb, pc) > 0:
+                abc = (pa, pb, pc)
+            else:
+                abc = (pa, pc, pb)
+            if not _in_circumcircle(abc[0], abc[1], abc[2], pd):
+                continue
+
+            # Flip diagonal (a, b) -> (c, d). Preserve CCW winding.
+            new0 = [a, c, d] if _ccw(pa, pc, pd) > 0 else [a, d, c]
+            new1 = [b, d, c] if _ccw(pb, pd, pc) > 0 else [b, c, d]
+            tris[t0i] = new0
+            tris[t1i] = new1
+            did_flip = True
+            break
+        if not did_flip:
+            break
+    return tris
+
+
+def _orient_cap_tris(tris: np.ndarray, ring_xy: np.ndarray,
+                     want_positive_z: bool) -> np.ndarray:
+    """Flip any CW/CCW mismatch so every triangle has the requested Z-normal sign."""
+    if tris.shape[0] == 0:
+        return tris
+    v0 = ring_xy[tris[:, 0]]
+    v1 = ring_xy[tris[:, 1]]
+    v2 = ring_xy[tris[:, 2]]
+    cross_z = (v1[:, 0] - v0[:, 0]) * (v2[:, 1] - v0[:, 1]) - \
+              (v1[:, 1] - v0[:, 1]) * (v2[:, 0] - v0[:, 0])
+    flip = cross_z < 0 if want_positive_z else cross_z > 0
+    out = tris.copy()
+    out[flip] = out[flip][:, [0, 2, 1]]
+    return out
+
+
+def _compute_vertex_normals(positions: np.ndarray,
+                            indices_flat: np.ndarray) -> np.ndarray:
+    """Area-weighted per-vertex normals. Writes explicit normals into the GLB.
+
+    Storing these as a NORMAL attribute lets :js:func:`computeVertexNormals` on
+    the client be skipped, so meshopt position quantization (``gltfpack -cc``)
+    no longer produces shading streaks on flat caps.
+    """
+    n_verts = int(positions.shape[0])
+    if n_verts == 0 or indices_flat.shape[0] == 0:
+        return np.zeros((n_verts, 3), dtype=np.float32)
+    faces = indices_flat.reshape(-1, 3).astype(np.int64, copy=False)
+    pos64 = positions.astype(np.float64, copy=False)
+    v0 = pos64[faces[:, 0]]
+    v1 = pos64[faces[:, 1]]
+    v2 = pos64[faces[:, 2]]
+    fn = np.cross(v1 - v0, v2 - v0)  # unnormalized => magnitude ~ 2 * area
+    normals = np.zeros((n_verts, 3), dtype=np.float64)
+    np.add.at(normals, faces[:, 0], fn)
+    np.add.at(normals, faces[:, 1], fn)
+    np.add.at(normals, faces[:, 2], fn)
+    lens = np.linalg.norm(normals, axis=1, keepdims=True)
+    lens = np.where(lens > 1e-12, lens, 1.0)
+    return (normals / lens).astype(np.float32)
+
+
+# ---------------------------------------------------------------------------
 # Per-cell loft
 # ---------------------------------------------------------------------------
 
 def _quad_strip_triangles(na: int, base_a: int, base_b: int) -> np.ndarray:
-    """Triangulate a shared-N quad strip between two aligned rings (2*na tris)."""
+    """Triangulate a shared-N quad strip between two aligned rings (2*na tris).
+
+    Assumes ring vertices are CCW in XY when viewed from +Z (guaranteed by
+    :func:`_ring_vertices`) and ``base_b`` is the ring one Z step above
+    ``base_a``. Triangle winding is chosen so face normals point OUTWARD from
+    the tube axis — required for :js:attr:`THREE.FrontSide` culling to render
+    the outside of each cell instead of the inside.
+    """
     i = np.arange(na, dtype=np.int64)
     j = (i + 1) % na
     tris = np.empty((na, 2, 3), dtype=np.int64)
     tris[:, 0, 0] = base_a + i
-    tris[:, 0, 1] = base_b + j
-    tris[:, 0, 2] = base_a + j
+    tris[:, 0, 1] = base_a + j
+    tris[:, 0, 2] = base_b + j
     tris[:, 1, 0] = base_a + i
-    tris[:, 1, 1] = base_b + i
-    tris[:, 1, 2] = base_b + j
+    tris[:, 1, 1] = base_b + j
+    tris[:, 1, 2] = base_b + i
     return tris.reshape(-1)
 
 
 def build_loft_mesh(
     gdf_cell,
-    z_scale: float,
-    smooth_iters: int = 3,
-    smooth_factor: float = 0.3,
-    ring_vertex_target: int | None = None,
+    z_scale: float = 2.0,
+    smooth_iters: int = 1,
+    smooth_factor: float = 0.5,
+    ring_vertex_target: int | None = 48,
     *,
     ring_curvature_base: float = 0.28,
-) -> tuple[np.ndarray, np.ndarray, tuple[float, ...]]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[float, ...]]:
     """Loft a watertight surface through one cell's cross-section stack.
 
-    Returns (positions_f32 shape (Nv, 3), indices_i64 shape (Nt*3,), bbox).
-    Empty arrays + zero bbox when the cell has fewer than 2 valid slices.
+    Returns ``(positions_f32 (Nv, 3), indices_i64 (Nt*3,), normals_f32 (Nv, 3),
+    bbox)``. Empty arrays + zero bbox when the cell has fewer than 2 valid
+    slices.
 
     The pipeline unifies every ring to a common vertex count using
     curvature-weighted resampling (``ring_curvature_base``: higher => closer to
     uniform arc length), rotation-aligns each ring to its predecessor by minimum
     vertex displacement, builds the mesh, and optionally applies **3D Taubin
     smoothing** (via trimesh). Shared topology means sides are fast quad strips.
-    For smoothing, the end-cap ears share indices with the first/last side rings
-    (watertight). After Taubin, those rings are **duplicated** in the position
-    buffer (same XYZ) and cap triangles are re-indexed to the copy so ``glTF``
-    loaders that call ``computeVertexNormals()`` do not average side + cap
-    (90°) normals, which would otherwise look like diagonal specular streaks
-    under PBR.
+    Cap triangulation uses a Delaunay + interior-centroid filter (not earcut)
+    so flat caps do not display a radial fan of sliver triangles under PBR.
+
+    After Taubin, the first/last side rings are **duplicated** in the position
+    buffer (same XYZ) and cap triangles are re-indexed to the copy so cap
+    vertex normals are pure +Z/-Z and never averaged with the tube's side
+    normals (which would show as diagonal specular streaks under PBR). Explicit
+    per-vertex normals are returned so the GLB loader can skip
+    ``computeVertexNormals()`` (meshopt-quantized positions otherwise produce
+    subtle facet shading even on a planar cap).
 
     ``ring_vertex_target``: common ring vertex count. If ``None``, uses the
     max input ring count.
     """
-    import mapbox_earcut as earcut
-
     rings_2d, zs = _collect_rings_for_cell(gdf_cell, z_scale)
 
     n_slices = len(rings_2d)
     empty_pos = np.zeros((0, 3), dtype=np.float32)
     empty_idx = np.zeros(0, dtype=np.int64)
+    empty_nrm = np.zeros((0, 3), dtype=np.float32)
     zero_bbox = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     if n_slices < 2:
-        return empty_pos, empty_idx, zero_bbox
+        return empty_pos, empty_idx, empty_nrm, zero_bbox
 
     if ring_vertex_target is not None:
         common_n = int(ring_vertex_target)
@@ -507,35 +675,23 @@ def build_loft_mesh(
     strips = [_quad_strip_triangles(n_ring, s * n_ring, (s + 1) * n_ring)
               for s in range(s_total - 1)]
 
-    cap0_ring = stack[0]
-    cap1_ring = stack[-1]
-    # Weld: earcut reuses the same indices as the bottom/top side rings, so
-    # Taubin and radius correction do not leave a cap boundary split from the tube.
-    cap0_base = 0
-    cap1_base = (s_total - 1) * n_ring
-
     positions = side_positions
 
-    def _cap_tris(ring_xy, base_idx, flip):
-        v2d = np.ascontiguousarray(ring_xy, dtype=np.float32)
-        rings = np.array([len(ring_xy)], dtype=np.uint32)
-        tris = earcut.triangulate_float32(v2d, rings)
-        tris = np.asarray(tris, dtype=np.int64).reshape(-1, 3) + base_idx
-        if flip:
-            tris = tris[:, ::-1]
-        return tris.reshape(-1)
+    def _cap_flat(ring_xy, base_idx, want_positive_z):
+        local = _cap_tris_cdt(ring_xy)
+        local = _orient_cap_tris(local, ring_xy, want_positive_z)
+        return (local + base_idx).reshape(-1)
 
-    cap0 = _cap_tris(cap0_ring, cap0_base, flip=True)
-    cap1 = _cap_tris(cap1_ring, cap1_base, flip=False)
-
-    indices = np.concatenate(strips + [cap0, cap1])
-
-    if smooth_iters > 0 and positions.shape[0] > 0 and indices.shape[0] > 0:
+    if smooth_iters > 0 and positions.shape[0] > 0:
         # Reference slice centroids (pre-smooth) for restoring placement after Taubin.
         side_ref = side_positions[:, :2].reshape(s_total, n_ring, 2).astype(np.float64, copy=False)
 
-        faces = indices.reshape(-1, 3).astype(np.int64, copy=False)
-        mesh = trimesh.Trimesh(vertices=positions.astype(np.float64, copy=False), faces=faces, process=False)
+        # Smooth only the side strips. Including cap diagonals in the graph
+        # pulls end-ring vertices across the ring (their cap neighbors are far
+        # from them in XY), which can collapse or self-intersect the cap ring.
+        # The end rings still get Laplacian averaging from strip neighbors.
+        side_faces = np.concatenate(strips).reshape(-1, 3).astype(np.int64, copy=False)
+        mesh = trimesh.Trimesh(vertices=positions.astype(np.float64, copy=False), faces=side_faces, process=False)
         lam, mu = _taubin_lam_mu(smooth_factor)
         trimesh.smoothing.filter_taubin(mesh, lamb=lam, nu=mu, iterations=int(smooth_iters))
         positions = mesh.vertices.astype(np.float32, copy=False)
@@ -568,30 +724,38 @@ def build_loft_mesh(
         positions[:n_side_verts, :2] = side_xy.reshape(-1, 2).astype(np.float32, copy=False)
 
     # Split end-cap vs tube at shared rings for shading (see docstring). Geometry
-    # is still the same (XYZ); only the index buffer for earcut tris changes.
+    # is still the same (XYZ); only the index buffer for cap tris changes.
     v0 = n_side_verts
     cap_dup = np.vstack((
         positions[0:n_ring].copy(),
         positions[(s_total - 1) * n_ring : s_total * n_ring].copy(),
     ))
     positions = np.vstack((positions, cap_dup))
-    cap0 = _cap_tris(
-        np.ascontiguousarray(positions[v0 : v0 + n_ring, :2], dtype=np.float32),
-        v0, flip=True,
+    cap0 = _cap_flat(
+        np.ascontiguousarray(positions[v0 : v0 + n_ring, :2], dtype=np.float64),
+        v0, want_positive_z=False,
     )
-    cap1 = _cap_tris(
+    cap1 = _cap_flat(
         np.ascontiguousarray(
-            positions[v0 + n_ring : v0 + 2 * n_ring, :2], dtype=np.float32,
+            positions[v0 + n_ring : v0 + 2 * n_ring, :2], dtype=np.float64,
         ),
-        v0 + n_ring, flip=False,
+        v0 + n_ring, want_positive_z=True,
     )
     indices = np.concatenate([np.concatenate(strips), cap0, cap1])
+
+    normals = _compute_vertex_normals(positions, indices)
+
+    # Caps are guaranteed planar in Z (we re-locked Z at line above); overwrite
+    # cap normals with exact +Z/-Z so float roundoff from cross products cannot
+    # nudge them off-axis after meshopt quantization.
+    normals[v0 : v0 + n_ring] = np.array([0.0, 0.0, -1.0], dtype=np.float32)
+    normals[v0 + n_ring : v0 + 2 * n_ring] = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
     mins = positions.min(axis=0)
     maxs = positions.max(axis=0)
     bbox = (float(mins[0]), float(mins[1]), float(mins[2]),
             float(maxs[0]), float(maxs[1]), float(maxs[2]))
-    return positions, indices, bbox
+    return positions, indices, normals, bbox
 
 
 # ---------------------------------------------------------------------------
@@ -600,10 +764,10 @@ def build_loft_mesh(
 
 def build_all_cells_mesh(
     gdf_render,
-    z_scale: float,
-    smooth_iters: int = 3,
-    smooth_factor: float = 0.3,
-    ring_vertex_target: int | None = None,
+    z_scale: float = 2.0,
+    smooth_iters: int = 1,
+    smooth_factor: float = 0.5,
+    ring_vertex_target: int | None = 48,
     *,
     ring_curvature_base: float = 0.28,
     ring_adaptive: bool = True,
@@ -648,7 +812,7 @@ def build_all_cells_mesh(
             if _on_progress is not None:
                 _on_progress(i, n, cid)
             rt = ring_vertex_target if n_by_cid is None else n_by_cid[cid]
-            pos, idx, bbox = build_loft_mesh(
+            pos, idx, nrm, bbox = build_loft_mesh(
                 cell_gdfs[cid],
                 z_scale,
                 smooth_iters,
@@ -656,7 +820,7 @@ def build_all_cells_mesh(
                 rt,
                 ring_curvature_base=ring_curvature_base,
             )
-            out.append((i, pos, idx, bbox))
+            out.append((i, pos, idx, nrm, bbox))
         return out
 
     batch_results = Parallel(n_jobs=-1, prefer="threads")(
@@ -665,24 +829,26 @@ def build_all_cells_mesh(
 
     cell_results = {}
     for batch_out in batch_results:
-        for i, pos, idx, bbox in batch_out:
+        for i, pos, idx, nrm, bbox in batch_out:
             if len(pos) > 0:
-                cell_results[i] = (pos, idx, bbox)
+                cell_results[i] = (pos, idx, nrm, bbox)
 
     if not cell_results:
-        return [], [], [], [0, 0, 0, 0, 0, 0]
+        return [], [], [], [], [0, 0, 0, 0, 0, 0]
 
     pos_parts: list[np.ndarray] = []
     idx_parts: list[np.ndarray] = []
+    nrm_parts: list[np.ndarray] = []
     col_parts: list[np.ndarray] = []
     all_bboxes: list[tuple] = []
     vert_offset = 0
     for i in sorted(cell_results):
-        pos, idx, bbox = cell_results[i]
+        pos, idx, nrm, bbox = cell_results[i]
         nv = len(pos)
         r, g, b = cell_color(i)
         pos_parts.append(pos)
         idx_parts.append(idx + vert_offset)
+        nrm_parts.append(nrm)
         rgb = np.empty((nv, 3), dtype=np.float32)
         rgb[:, 0] = r
         rgb[:, 1] = g
@@ -693,6 +859,7 @@ def build_all_cells_mesh(
 
     positions = np.vstack(pos_parts)
     indices = np.concatenate(idx_parts)
+    normals = np.vstack(nrm_parts)
     colors = np.vstack(col_parts)
 
     b = np.asarray(all_bboxes, dtype=np.float64)
@@ -703,6 +870,7 @@ def build_all_cells_mesh(
     return (
         positions.reshape(-1).astype(np.float32).tolist(),
         indices.astype(np.int64).tolist(),
+        normals.reshape(-1).astype(np.float32).tolist(),
         colors.reshape(-1).astype(np.float32).tolist(),
         bbox,
     )
