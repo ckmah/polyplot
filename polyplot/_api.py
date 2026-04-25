@@ -142,18 +142,19 @@ def meshify(
 
 def plot(
     gdf: gpd.GeoDataFrame,
-    *,
+    smooth: bool = True,
     max_concurrent_fetches: int = 4,
     use_cache: bool = True,
 ) -> MarimoAnywidgetUI:
     """Open the 3D viewer for ``gdf``, building from cache or exporting first.
 
-    Calls :func:`meshify` with ``smooth=True``, ``out_dir=".polyplot"``, and
+    Calls :func:`meshify` with ``out_dir=".polyplot"`` and ``show_progress=False``.
     ``show_progress=False``. Wireframe, opacity, and background are adjusted in the
     widget toolbar.
 
     Args:
         gdf: GeoDataFrame with columns ``cell_id``, ``ZIndex``, and ``geometry``.
+        smooth: If ``True``, apply 3D Taubin smoothing; if ``False``, none.
         max_concurrent_fetches: Maximum parallel HTTP fetches for tile GLBs.
         use_cache: Forwarded to :func:`meshify`.
 
@@ -167,7 +168,7 @@ def plot(
     tiles_info = meshify(
         gdf,
         ".polyplot",
-        smooth=True,
+        smooth=smooth,
         use_cache=use_cache,
         show_progress=False,
     )

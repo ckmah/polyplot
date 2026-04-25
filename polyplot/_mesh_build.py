@@ -531,9 +531,7 @@ def build_loft_mesh(
     indices = np.concatenate(strips + [cap0, cap1])
 
     if smooth_iters > 0 and positions.shape[0] > 0 and indices.shape[0] > 0:
-        # Keep a copy of the pre-smooth side rings so we can preserve per-slice
-        # thickness. Unconstrained 3D smoothing can create a "waist/hourglass"
-        # artifact by shrinking some slices more than others.
+        # Reference slice centroids (pre-smooth) for restoring placement after Taubin.
         side_ref = side_positions[:, :2].reshape(s_total, n_ring, 2).astype(np.float64, copy=False)
 
         faces = indices.reshape(-1, 3).astype(np.int64, copy=False)
@@ -542,8 +540,10 @@ def build_loft_mesh(
         trimesh.smoothing.filter_taubin(mesh, lamb=lam, nu=mu, iterations=int(smooth_iters))
         positions = mesh.vertices.astype(np.float32, copy=False)
 
-        # Re-normalize each slice's XY radius to match the pre-smooth ring.
-        # This preserves overall thickness and prevents necking artifacts.
+        # Single post-smooth pass:
+        # - re-lock Z to input stack heights
+        # - restore per-slice XY centroid + mean radius to pre-smooth values
+        # - sequentially roll slice s to match s-1 for strip correspondence
         side_xy = positions[:n_side_verts, :2].reshape(s_total, n_ring, 2).astype(np.float64, copy=False)
         eps = 1e-12
         for s in range(s_total):
@@ -551,12 +551,21 @@ def build_loft_mesh(
             cur = side_xy[s]
             c_ref = ref.mean(axis=0)
             c_cur = cur.mean(axis=0)
-            r_ref = np.sqrt(((ref - c_ref) ** 2).sum(axis=1)).mean()
-            r_cur = np.sqrt(((cur - c_cur) ** 2).sum(axis=1)).mean()
-            if r_cur > eps and r_ref > eps:
-                scale = r_ref / r_cur
-                cur2 = c_cur + scale * (cur - c_cur)
-                positions[s * n_ring:(s + 1) * n_ring, :2] = cur2.astype(np.float32, copy=False)
+            ref0 = ref - c_ref
+            cur0 = cur - c_cur
+            r_ref = np.sqrt((ref0 * ref0).sum(axis=1)).mean()
+            r_cur = np.sqrt((cur0 * cur0).sum(axis=1)).mean()
+            scale = (r_ref / r_cur) if (r_ref > eps and r_cur > eps) else 1.0
+            side_xy[s] = c_ref + scale * cur0
+            lo = s * n_ring
+            positions[lo : lo + n_ring, 2] = float(z_arr[s])
+
+        for s in range(1, s_total):
+            side_xy[s] = _align_ring_min_sqdist(
+                np.ascontiguousarray(side_xy[s - 1], dtype=np.float64),
+                np.ascontiguousarray(side_xy[s], dtype=np.float64),
+            )
+        positions[:n_side_verts, :2] = side_xy.reshape(-1, 2).astype(np.float32, copy=False)
 
     # Split end-cap vs tube at shared rings for shading (see docstring). Geometry
     # is still the same (XYZ); only the index buffer for earcut tris changes.
@@ -567,12 +576,12 @@ def build_loft_mesh(
     ))
     positions = np.vstack((positions, cap_dup))
     cap0 = _cap_tris(
-        np.ascontiguousarray(positions[0:n_ring, :2], dtype=np.float32),
+        np.ascontiguousarray(positions[v0 : v0 + n_ring, :2], dtype=np.float32),
         v0, flip=True,
     )
     cap1 = _cap_tris(
         np.ascontiguousarray(
-            positions[(s_total - 1) * n_ring : s_total * n_ring, :2], dtype=np.float32,
+            positions[v0 + n_ring : v0 + 2 * n_ring, :2], dtype=np.float32,
         ),
         v0 + n_ring, flip=False,
     )
