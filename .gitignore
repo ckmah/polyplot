@@ -1,0 +1,39 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.so
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Caches and local artifacts
+.polyplot/
+.DS_Store
+
+# Editor / local agent config (not part of the published package)
+.agents/
+.claude/
+.cursor/
+**/.cursor/debug*.log
+
+# Marimo
+.marimo/
+
+# Sample data: only committed subset and README; keep large parquets local
+sample_data/*
+!sample_data/liver_crop_sample.parquet
+!sample_data/README.md
+
+# Zensical build output (when built locally)
+site/
+
+# Local / scratch (do not commit)
+__marimo__/
+.playwright-mcp/
+.cache/
+10d5e9aef715a85fe4ab51b773223101b644c927f83cd0db969320b3672cfa6d/
+tiles/
+*.png
+skills-lock.json
