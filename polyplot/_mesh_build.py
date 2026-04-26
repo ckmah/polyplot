@@ -5,6 +5,25 @@ from numba import njit
 import trimesh
 
 
+@njit(cache=True, fastmath=True, nogil=True)
+def _best_shift_nb(prev: np.ndarray, curr: np.ndarray) -> int:
+    """Best cyclic shift k minimising sum-sq displacement; no heap allocs."""
+    n = prev.shape[0]
+    best_cost = 1e200
+    best_k = 0
+    for k in range(n):
+        cost = 0.0
+        for i in range(n):
+            src = (i + k) % n
+            dx = curr[src, 0] - prev[i, 0]
+            dy = curr[src, 1] - prev[i, 1]
+            cost += dx * dx + dy * dy
+        if cost < best_cost:
+            best_cost = cost
+            best_k = k
+    return best_k
+
+
 def _largest_polygon(geom):
     from shapely.geometry import MultiPolygon, Polygon
     if isinstance(geom, Polygon):
@@ -163,13 +182,9 @@ def _align_ring_min_sqdist(prev: np.ndarray, curr: np.ndarray) -> np.ndarray:
     # Keep exhaustive for very small rings where overhead dominates and
     # symmetry-induced local minima are common.
     if n <= 128:
-        ar = np.arange(n, dtype=np.int64)
-        ks = np.arange(n, dtype=np.int64)[:, None]
-        idx = (ar - ks) % n
-        rolled = curr[idx]
-        costs = np.sum((rolled - prev) ** 2, axis=(1, 2))
-        best_k = int(np.argmin(costs))
-        return np.ascontiguousarray(curr[(np.arange(n, dtype=np.int64) - best_k) % n])
+        best_k = int(_best_shift_nb(prev, curr))
+        idx = (np.arange(n, dtype=np.int64) + best_k) % n
+        return np.ascontiguousarray(curr[idx])
 
     k0 = int(_best_roll_fft(prev, curr))
     win = 16
