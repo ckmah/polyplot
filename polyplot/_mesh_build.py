@@ -883,11 +883,6 @@ def build_loft_mesh_from_rings(
         side_xy[:] = c_ref + scale * cur0
         positions[:n_side_verts, 2] = np.repeat(z_arr.astype(np.float32), n_ring)
 
-        for s in range(1, s_total):
-            side_xy[s] = _align_ring_min_sqdist(
-                np.ascontiguousarray(side_xy[s - 1], dtype=np.float64),
-                np.ascontiguousarray(side_xy[s], dtype=np.float64),
-            )
         positions[:n_side_verts, :2] = side_xy.reshape(-1, 2).astype(np.float32, copy=False)
 
     # Split end-cap vs tube at shared rings for shading (see docstring). Geometry
