@@ -233,29 +233,50 @@ def _build_tile_data(
     nrm_parts: list[np.ndarray] = []
     col_parts: list[np.ndarray] = []
     all_bboxes: list[tuple] = []
-    vert_offset = 0
 
-    for cell_id in cell_ids:
-        rt = ring_target if n_by_cid is None else n_by_cid[cell_id]
+    def _loft_cell(cid):
+        rt = ring_target if n_by_cid is None else n_by_cid[cid]
         pos, idx, nrm, bbox = build_loft_mesh_from_rings(
-            rings_by_cid[cell_id],
-            zs_by_cid[cell_id],
+            rings_by_cid[cid],
+            zs_by_cid[cid],
             smooth_iters=smooth_iters,
             smooth_factor=smooth_factor,
             ring_vertex_target=rt,
             ring_curvature_base=ring_cb,
         )
         if pos.shape[0] == 0:
-            continue
+            return None
         nv = pos.shape[0]
-        r, g, b = cell_colors[cell_id]
-        pos_parts.append(pos)
-        idx_parts.append(idx + vert_offset)
-        nrm_parts.append(nrm)
+        r, g, b = cell_colors[cid]
         rgb = np.empty((nv, 3), dtype=np.float32)
         rgb[:, 0] = r
         rgb[:, 1] = g
         rgb[:, 2] = b
+        return cid, pos, idx, nrm, rgb, bbox
+
+    if len(cell_ids) > 1:
+        raw = Parallel(n_jobs=-1, prefer="threads")(
+            delayed(_loft_cell)(cid) for cid in cell_ids
+        )
+    else:
+        raw = [_loft_cell(cell_ids[0])] if cell_ids else []
+
+    by_cid: dict = {}
+    for item in raw:
+        if item is None:
+            continue
+        cid, pos, idx, nrm, rgb, bbox = item
+        by_cid[cid] = (pos, idx, nrm, rgb, bbox)
+
+    vert_offset = 0
+    for cell_id in cell_ids:
+        if cell_id not in by_cid:
+            continue
+        pos, idx, nrm, rgb, bbox = by_cid[cell_id]
+        nv = pos.shape[0]
+        pos_parts.append(pos)
+        idx_parts.append(idx + vert_offset)
+        nrm_parts.append(nrm)
         col_parts.append(rgb)
         all_bboxes.append(bbox)
         vert_offset += nv
