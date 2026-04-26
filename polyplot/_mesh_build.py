@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from numba import njit
 import trimesh
 import shapely as _shapely
+from shapely.geometry import Polygon as _Polygon, MultiPolygon as _MultiPolygon
 
 
 @njit(cache=True, fastmath=True, nogil=True)
@@ -222,10 +223,9 @@ def _best_shift_nb(prev: np.ndarray, curr: np.ndarray) -> int:
 
 
 def _largest_polygon(geom):
-    from shapely.geometry import MultiPolygon, Polygon
-    if isinstance(geom, Polygon):
+    if isinstance(geom, _Polygon):
         return geom if not geom.is_empty else None
-    if isinstance(geom, MultiPolygon):
+    if isinstance(geom, _MultiPolygon):
         polys = [g for g in geom.geoms if not g.is_empty]
         if not polys:
             return None
@@ -501,19 +501,37 @@ def _taubin_lam_mu(factor: float) -> tuple[float, float]:
 
 def _collect_rings_for_cell(gdf_cell, z_scale: float) -> tuple[list[np.ndarray], list[float]]:
     """Extract ordered 2D rings and Z values for one cell (same rules as ``build_loft_mesh``)."""
-    df = gdf_cell.sort_values("ZIndex")
-    geoms = df.geometry.values
-    zvals = df["ZIndex"].to_numpy(dtype=np.float64)
+    geoms = gdf_cell.geometry.values
+    zvals = gdf_cell["ZIndex"].to_numpy(dtype=np.float64)
+    polys: list = []
+    zi_keep: list[float] = []
+    for geom, zi in zip(geoms, zvals, strict=True):
+        p = _largest_polygon(geom)
+        if p is not None:
+            polys.append(p)
+            zi_keep.append(zi)
+    if not polys:
+        return [], []
+    ext_rings = _shapely.get_exterior_ring(np.asarray(polys, dtype=object))
+    npts = _shapely.get_num_coordinates(ext_rings)
+    coords_all = _shapely.get_coordinates(ext_rings, include_z=False)
     rings_2d: list[np.ndarray] = []
     zs: list[float] = []
-    for geom, zi in zip(geoms, zvals, strict=True):
-        poly = _largest_polygon(geom)
-        if poly is None:
+    offset = 0
+    for n, zi in zip(npts, zi_keep):
+        nc = int(n)
+        if nc < 4:
+            offset += nc
             continue
-        ring = _ring_vertices(poly)
-        if len(ring) < 3:
+        pts = coords_all[offset:offset + nc - 1]
+        offset += nc
+        if len(pts) < 3:
             continue
-        rings_2d.append(ring)
+        area2 = (pts[:-1, 0] * pts[1:, 1] - pts[1:, 0] * pts[:-1, 1]).sum()
+        area2 += pts[-1, 0] * pts[0, 1] - pts[0, 0] * pts[-1, 1]
+        if area2 < 0:
+            pts = pts[::-1]
+        rings_2d.append(pts)
         zs.append(float(zi) * float(z_scale))
     return rings_2d, zs
 
@@ -1052,7 +1070,8 @@ def build_all_cells_mesh(
     backward compatibility with GLB writers that expect list/ndarray-agnostic
     inputs).
     """
-    # Group once: avoids O(n_cells * n_rows) boolean slicing.
+    # Pre-sort so each cell group is already ordered by ZIndex; avoids per-cell sort_values.
+    gdf_render = gdf_render.sort_values(["cell_id", "ZIndex"])
     groups = {cid: df for cid, df in gdf_render.groupby("cell_id", sort=False)}
     cell_ids = sorted(groups.keys())
     n = len(cell_ids)
