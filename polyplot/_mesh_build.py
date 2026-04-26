@@ -6,6 +6,40 @@ import trimesh
 
 
 @njit(cache=True, fastmath=True, nogil=True)
+def _curvature_weights_nb(ring: np.ndarray, base: float) -> np.ndarray:
+    """Compute curvature-weighted edge lengths for ring resampling."""
+    n = ring.shape[0]
+    edge_w = np.empty(n, dtype=np.float64)
+    for i in range(n):
+        prv = ring[(i - 1) % n]
+        cur = ring[i]
+        nxt = ring[(i + 1) % n]
+        vp0 = cur[0] - prv[0]; vp1 = cur[1] - prv[1]
+        vn0 = nxt[0] - cur[0]; vn1 = nxt[1] - cur[1]
+        lp = (vp0*vp0 + vp1*vp1)**0.5 + 1e-12
+        ln = (vn0*vn0 + vn1*vn1)**0.5 + 1e-12
+        dot = (vp0*vn0 + vp1*vn1) / (lp * ln)
+        if dot < -1.0: dot = -1.0
+        if dot > 1.0: dot = 1.0
+        ep_d = (1.0 - dot) + base * 3.141592653589793
+        nxt2 = ring[(i + 1) % n]
+        nxt2_0 = nxt2[0]; nxt2_1 = nxt2[1]
+        vn2_0 = nxt2_0 - cur[0]; vn2_1 = nxt2_1 - cur[1]
+        ln2 = (vn2_0*vn2_0 + vn2_1*vn2_1)**0.5 + 1e-12
+        nxt3 = ring[(i + 2) % n]
+        vp3_0 = nxt2_0 - cur[0]; vp3_1 = nxt2_1 - cur[1]
+        vn3_0 = nxt3[0] - nxt2_0; vn3_1 = nxt3[1] - nxt2_1
+        lp3 = (vp3_0*vp3_0 + vp3_1*vp3_1)**0.5 + 1e-12
+        ln3 = (vn3_0*vn3_0 + vn3_1*vn3_1)**0.5 + 1e-12
+        dot3 = (vp3_0*vn3_0 + vp3_1*vn3_1) / (lp3 * ln3)
+        if dot3 < -1.0: dot3 = -1.0
+        if dot3 > 1.0: dot3 = 1.0
+        ep_d2 = (1.0 - dot3) + base * 3.141592653589793
+        edge_w[i] = ln2 * 0.5 * (ep_d + ep_d2)
+    return edge_w
+
+
+@njit(cache=True, fastmath=True, nogil=True)
 def _refine_shift_nb(prev: np.ndarray, curr: np.ndarray, k0: int, win: int) -> int:
     """Local window search around k0; best cyclic shift in [k0-win, k0+win]."""
     n = prev.shape[0]
