@@ -871,8 +871,14 @@ def build_loft_mesh_from_rings(
     side_positions[:, 0:2] = stack.reshape(-1, 2)
     side_positions[:, 2] = np.repeat(z_arr.astype(np.float32), n_ring)
 
-    strips = [_quad_strip_triangles(n_ring, s * n_ring, (s + 1) * n_ring)
-              for s in range(s_total - 1)]
+    _qi = np.arange(n_ring, dtype=np.int64)
+    _qj = (_qi + 1) % n_ring
+    _qt = np.empty((n_ring, 2, 3), dtype=np.int64)
+    _qt[:, 0, 0] = _qi; _qt[:, 0, 1] = _qj; _qt[:, 0, 2] = n_ring + _qj
+    _qt[:, 1, 0] = _qi; _qt[:, 1, 1] = n_ring + _qj; _qt[:, 1, 2] = n_ring + _qi
+    _qbase = _qt.reshape(1, -1)
+    _qoff = (np.arange(s_total - 1, dtype=np.int64) * n_ring)[:, None]
+    strips_flat = (_qbase + _qoff).ravel()
 
     positions = side_positions
 
@@ -890,7 +896,7 @@ def build_loft_mesh_from_rings(
         # pulls end-ring vertices across the ring (their cap neighbors are far
         # from them in XY), which can collapse or self-intersect the cap ring.
         # The end rings still get Laplacian averaging from strip neighbors.
-        side_faces = np.concatenate(strips).reshape(-1, 3).astype(np.int64, copy=False)
+        side_faces = strips_flat.reshape(-1, 3)
         lam, mu = _taubin_lam_mu(smooth_factor)
         verts = positions.astype(np.float64, copy=True)
         n_v = verts.shape[0]
@@ -949,7 +955,7 @@ def build_loft_mesh_from_rings(
         ),
         v0 + n_ring, want_positive_z=True,
     )
-    indices = np.concatenate([np.concatenate(strips), cap0, cap1])
+    indices = np.concatenate([strips_flat, cap0, cap1])
 
     normals = _compute_vertex_normals(positions, indices)
 
