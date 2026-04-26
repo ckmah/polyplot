@@ -20,7 +20,6 @@ from pathlib import Path
 
 import numpy as np
 
-from polyplot import _autoresearch_knobs as _ak
 from polyplot._mesh_build import (
     _adaptive_ring_targets_from_scores,
     _cell_max_turning,
@@ -213,19 +212,19 @@ def _build_tile_data(
     Returns (glb_bytes, bbox) where bbox is [minX, minY, minZ, maxX, maxY, maxZ].
     Returns (b"", None) if no valid cell meshes were produced.
     """
-    z_scale = cfg.get("z_scale", _ak.Z_SCALE_DEFAULT)
+    z_scale = cfg.get("z_scale", 2.0)
     smooth_iters = cfg.get("smooth_iters", 1)
     smooth_factor = cfg.get("smooth_factor", 0.5)
-    ring_target = cfg.get("ring_target", _ak.RING_TARGET_DEFAULT)
-    ring_cb = float(cfg.get("ring_curvature_base", _ak.RING_CURVATURE_BASE_DEFAULT))
+    ring_target = cfg.get("ring_target", 48)
+    ring_cb = float(cfg.get("ring_curvature_base", 0.28))
     n_by_cid = _adaptive_ring_targets_from_scores(
         cell_ids,
         scores_by_cid,
         ring_target,
         adaptive=cfg.get("ring_adaptive", True),
-        min_mul=float(cfg.get("ring_adaptive_min_mul", _ak.ADAPTIVE_MIN_MUL)),
-        max_mul=float(cfg.get("ring_adaptive_max_mul", _ak.ADAPTIVE_MAX_MUL)),
-        exponent=float(cfg.get("ring_adaptive_exponent", _ak.ADAPTIVE_EXPONENT)),
+        min_mul=float(cfg.get("ring_adaptive_min_mul", 0.55)),
+        max_mul=float(cfg.get("ring_adaptive_max_mul", 2.25)),
+        exponent=float(cfg.get("ring_adaptive_exponent", 0.75)),
     )
 
     pos_parts: list[np.ndarray] = []

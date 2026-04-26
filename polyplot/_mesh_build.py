@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import math
-import os
-
 import numpy as np
 from numba import njit
 import trimesh
-
-from polyplot import _autoresearch_knobs as _ak
 
 
 def _largest_polygon(geom):
@@ -160,36 +155,32 @@ def _align_ring_min_sqdist(prev: np.ndarray, curr: np.ndarray) -> np.ndarray:
     n = len(prev)
     if n == 0 or len(curr) != n:
         return _align_to(prev, curr)
-    if n > int(_ak.ALIGN_FFT_ONLY_MIN_N):
+    if n > 512:
         return np.roll(curr, -_best_roll_fft(prev, curr), axis=0)
     # For moderate N, do a robust but sub-quadratic search:
     # - FFT gives the best correlation shift in O(N log N)
     # - refine by evaluating a small local window in exact sqdist space
     # Keep exhaustive for very small rings where overhead dominates and
     # symmetry-induced local minima are common.
-    if n <= int(_ak.ALIGN_EXHAUSTIVE_MAX_N):
-        best_k = 0
-        best_cost = np.inf
-        for k in range(n):
-            rolled = np.roll(curr, -k, axis=0)
-            cost = float(np.sum((rolled - prev) ** 2))
-            if cost < best_cost:
-                best_cost = cost
-                best_k = k
-        return np.roll(curr, -best_k, axis=0)
+    if n <= 128:
+        ar = np.arange(n, dtype=np.int64)
+        ks = np.arange(n, dtype=np.int64)[:, None]
+        idx = (ar - ks) % n
+        rolled = curr[idx]
+        costs = np.sum((rolled - prev) ** 2, axis=(1, 2))
+        best_k = int(np.argmin(costs))
+        return np.ascontiguousarray(curr[(np.arange(n, dtype=np.int64) - best_k) % n])
 
     k0 = int(_best_roll_fft(prev, curr))
-    win = int(_ak.ALIGN_REFINE_WINDOW)
-    best_k = k0
-    best_cost = np.inf
-    for dk in range(-win, win + 1):
-        k = (k0 + dk) % n
-        rolled = np.roll(curr, -k, axis=0)
-        cost = float(np.sum((rolled - prev) ** 2))
-        if cost < best_cost:
-            best_cost = cost
-            best_k = k
-    return np.roll(curr, -best_k, axis=0)
+    win = 16
+    cand = np.arange(-win, win + 1, dtype=np.int64)
+    ks = (k0 + cand) % n
+    i = np.arange(n, dtype=np.int64)
+    idx = (i[None, :] - ks[:, None]) % n
+    rolled = curr[idx]
+    costs = np.sum((rolled - prev) ** 2, axis=(1, 2))
+    best_k = int(ks[int(np.argmin(costs))])
+    return np.ascontiguousarray(curr[(np.arange(n, dtype=np.int64) - best_k) % n])
 
 
 # ---------------------------------------------------------------------------
@@ -454,6 +445,8 @@ def _unify_ring_count(
     curvature_base: float = 0.28,
 ) -> list[np.ndarray]:
     """Resample every ring to exactly ``n_target`` vertices (curvature-weighted)."""
+    if rings and all(len(r) == n_target for r in rings):
+        return list(rings)
     return [
         _curvature_resample(
             r, n_target, base=curvature_base, redistribute_equal=True,
@@ -487,37 +480,125 @@ def _cap_tris_earcut(ring_xy: np.ndarray) -> np.ndarray:
     return np.asarray(tris, dtype=np.int64).reshape(-1, 3)
 
 
-def _orient2d_ccw(p: np.ndarray, q: np.ndarray, r: np.ndarray) -> float:
-    """Twice signed area / CCW turn test: >0 iff ``q`` is left of directed ``pr``."""
-    return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+@njit(cache=True)
+def _lawson_flip_one_pass_numba(
+    tris: np.ndarray, pts: np.ndarray, adj0: np.ndarray, adj1: np.ndarray,
+) -> bool:
+    """Single Lawson flip sweep; mutates ``tris`` in-place. Returns True if flipped.
 
-
-def _tri_vertex_not_ab(row: np.ndarray, a: int, b: int) -> int:
-    """Third vertex index in triangle row ``(3,)`` that is neither ``a`` nor ``b``."""
-    u, v, w = int(row[0]), int(row[1]), int(row[2])
-    if u != a and u != b:
-        return u
-    if v != a and v != b:
-        return v
-    return w
-
-
-def _in_circumcircle(a: np.ndarray, b: np.ndarray, c: np.ndarray,
-                     d: np.ndarray) -> bool:
-    """Strict Delaunay in-circle test for a CCW-oriented triangle (a, b, c).
-
-    Returns True iff point ``d`` lies strictly inside the circumcircle of
-    ``a, b, c``. Uses the standard 3x3 determinant.
+    ``adj0``/``adj1`` are (n, n) workspaces cleared each call (reused across passes).
     """
-    ax, ay = a[0] - d[0], a[1] - d[1]
-    bx, by = b[0] - d[0], b[1] - d[1]
-    cx, cy = c[0] - d[0], c[1] - d[1]
-    det = (
-        (ax * ax + ay * ay) * (bx * cy - by * cx)
-        - (bx * bx + by * by) * (ax * cy - ay * cx)
-        + (cx * cx + cy * cy) * (ax * by - ay * bx)
-    )
-    return det > 1e-12
+    n = pts.shape[0]
+    nt = tris.shape[0]
+    adj0.fill(-1)
+    adj1.fill(-1)
+    for ti in range(nt):
+        for kk in range(3):
+            a = int(tris[ti, kk])
+            b = int(tris[ti, (kk + 1) % 3])
+            if a < b:
+                u = a
+                v = b
+            else:
+                u = b
+                v = a
+            if adj0[u, v] == -1:
+                adj0[u, v] = ti
+            else:
+                adj1[u, v] = ti
+    for u in range(n):
+        for v in range(u + 1, n):
+            t0i = adj0[u, v]
+            t1i = adj1[u, v]
+            if t0i == -1 or t1i == -1:
+                continue
+            a = u
+            b = v
+            t0_ar = tris[t0i]
+            t1_ar = tris[t1i]
+            c = -1
+            for kk in range(3):
+                vv = int(t0_ar[kk])
+                if vv != a and vv != b:
+                    c = vv
+                    break
+            d = -1
+            for kk in range(3):
+                vv = int(t1_ar[kk])
+                if vv != a and vv != b:
+                    d = vv
+                    break
+            if c == -1 or d == -1:
+                continue
+            pa0 = pts[a, 0]
+            pa1 = pts[a, 1]
+            pb0 = pts[b, 0]
+            pb1 = pts[b, 1]
+            pc0 = pts[c, 0]
+            pc1 = pts[c, 1]
+            pd0 = pts[d, 0]
+            pd1 = pts[d, 1]
+            o1 = (pc0 - pa0) * (pb1 - pa1) - (pc1 - pa1) * (pb0 - pa0)
+            o2 = (pd0 - pa0) * (pb1 - pa1) - (pd1 - pa1) * (pb0 - pa0)
+            if o1 * o2 >= 0.0:
+                continue
+            o3 = (pa0 - pc0) * (pd1 - pc1) - (pa1 - pc1) * (pd0 - pc0)
+            o4 = (pb0 - pc0) * (pd1 - pc1) - (pb1 - pc1) * (pd0 - pc0)
+            if o3 * o4 >= 0.0:
+                continue
+            o_abc = (pb0 - pa0) * (pc1 - pa1) - (pb1 - pa1) * (pc0 - pa0)
+            ax = pa0
+            ay = pa1
+            bx = pb0
+            by = pb1
+            cx = pc0
+            cy = pc1
+            if o_abc <= 0.0:
+                bx = pc0
+                by = pc1
+                cx = pb0
+                cy = pb1
+            dx = pd0
+            dy = pd1
+            axd = ax - dx
+            ayd = ay - dy
+            bxd = bx - dx
+            byd = by - dy
+            cxd = cx - dx
+            cyd = cy - dy
+            det = (
+                (axd * axd + ayd * ayd) * (bxd * cyd - byd * cxd)
+                - (bxd * bxd + byd * byd) * (axd * cyd - ayd * cxd)
+                + (cxd * cxd + cyd * cyd) * (axd * byd - ayd * bxd)
+            )
+            if det <= 1e-12:
+                continue
+            o_acd = (pc0 - pa0) * (pd1 - pa1) - (pc1 - pa1) * (pd0 - pa0)
+            if o_acd > 0.0:
+                n0a = a
+                n0b = c
+                n0c = d
+            else:
+                n0a = a
+                n0b = d
+                n0c = c
+            o_bdc = (pd0 - pb0) * (pc1 - pb1) - (pd1 - pb1) * (pc0 - pb0)
+            if o_bdc > 0.0:
+                n1a = b
+                n1b = d
+                n1c = c
+            else:
+                n1a = b
+                n1b = c
+                n1c = d
+            tris[t0i, 0] = n0a
+            tris[t0i, 1] = n0b
+            tris[t0i, 2] = n0c
+            tris[t1i, 0] = n1a
+            tris[t1i, 1] = n1b
+            tris[t1i, 2] = n1c
+            return True
+    return False
 
 
 def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
@@ -533,8 +614,6 @@ def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
     triangulates the convex hull, and a centroid-in-polygon filter leaks
     overlapping triangles across shallow concavities.
     """
-    from collections import defaultdict
-
     n = len(ring_xy)
     if n < 3:
         return np.zeros((0, 3), dtype=np.int64)
@@ -542,6 +621,7 @@ def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
     tris = _cap_tris_earcut(ring_xy)
     if tris.shape[0] == 0:
         return tris
+    tris = np.ascontiguousarray(tris, dtype=np.int64)
     pts = np.ascontiguousarray(ring_xy, dtype=np.float64)
 
     # Normalize winding to CCW so the in-circle test's orientation is consistent.
@@ -551,52 +631,11 @@ def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
     flip = cross_z < 0
     tris[flip] = tris[flip][:, [0, 2, 1]]
 
-    # Lawson flipping: up to O(n^2) flips in worst case; tiny n (<=128).
-    max_passes = int(_ak.CDT_PASS_MULTIPLIER) * n
+    adj0 = np.empty((n, n), dtype=np.int32)
+    adj1 = np.empty((n, n), dtype=np.int32)
+    max_passes = 4 * n
     for _ in range(max_passes):
-        edge_to_tri: dict[tuple[int, int], list[int]] = defaultdict(list)
-        for ti, t in enumerate(tris):
-            for a, b in ((int(t[0]), int(t[1])),
-                         (int(t[1]), int(t[2])),
-                         (int(t[2]), int(t[0]))):
-                key = (a, b) if a < b else (b, a)
-                edge_to_tri[key].append(ti)
-
-        did_flip = False
-        for (a, b), adj in edge_to_tri.items():
-            if len(adj) != 2:
-                continue
-            t0i, t1i = adj
-            t0 = tris[t0i]
-            t1 = tris[t1i]
-            c = _tri_vertex_not_ab(t0, a, b)
-            d = _tri_vertex_not_ab(t1, a, b)
-
-            # Skip if the quadrilateral (a, c, b, d) is non-convex — flipping
-            # would produce a triangle outside the current coverage.
-            pa, pb, pc, pd = pts[a], pts[b], pts[c], pts[d]
-            if _orient2d_ccw(pa, pc, pb) * _orient2d_ccw(pa, pd, pb) >= 0:
-                continue
-            if _orient2d_ccw(pc, pa, pd) * _orient2d_ccw(pc, pb, pd) >= 0:
-                continue
-
-            # Delaunay condition: d must lie outside circumcircle of t0.
-            # Re-order t0 to CCW(a, b, c) for the in-circle test.
-            if _orient2d_ccw(pa, pb, pc) > 0:
-                abc = (pa, pb, pc)
-            else:
-                abc = (pa, pc, pb)
-            if not _in_circumcircle(abc[0], abc[1], abc[2], pd):
-                continue
-
-            # Flip diagonal (a, b) -> (c, d). Preserve CCW winding.
-            new0 = [a, c, d] if _orient2d_ccw(pa, pc, pd) > 0 else [a, d, c]
-            new1 = [b, d, c] if _orient2d_ccw(pb, pd, pc) > 0 else [b, c, d]
-            tris[t0i] = new0
-            tris[t1i] = new1
-            did_flip = True
-            break
-        if not did_flip:
+        if not _lawson_flip_one_pass_numba(tris, pts, adj0, adj1):
             break
     return tris
 
@@ -874,11 +913,6 @@ def build_all_cells_mesh(
     if n == 0:
         return [], [], [], [0, 0, 0, 0, 0, 0]
 
-    n_workers = os.cpu_count() or 4
-    batch_size = max(1, math.ceil(n / (n_workers * 4)))
-    indexed = list(enumerate(cell_ids))
-    batches = [indexed[s: s + batch_size] for s in range(0, n, batch_size)]
-
     # Extract rings once (used for adaptive sizing + meshing).
     rings_by_cid: dict = {}
     zs_by_cid: dict = {}
@@ -899,30 +933,21 @@ def build_all_cells_mesh(
         exponent=ring_adaptive_exponent,
     )
 
-    def _build_batch(batch):
-        out = []
-        for i, cid in batch:
-            if _on_progress is not None:
-                _on_progress(i, n, cid)
-            rt = ring_vertex_target if n_by_cid is None else n_by_cid[cid]
-            pos, idx, nrm, bbox = build_loft_mesh_from_rings(
-                rings_by_cid[cid],
-                zs_by_cid[cid],
-                smooth_iters=smooth_iters,
-                smooth_factor=smooth_factor,
-                ring_vertex_target=rt,
-                ring_curvature_base=ring_curvature_base,
-            )
-            out.append((i, pos, idx, nrm, bbox))
-        return out
-
-    batch_results = [_build_batch(b) for b in batches]
-
     cell_results = {}
-    for batch_out in batch_results:
-        for i, pos, idx, nrm, bbox in batch_out:
-            if len(pos) > 0:
-                cell_results[i] = (pos, idx, nrm, bbox)
+    for i, cid in enumerate(cell_ids):
+        if _on_progress is not None:
+            _on_progress(i, n, cid)
+        rt = ring_vertex_target if n_by_cid is None else n_by_cid[cid]
+        pos, idx, nrm, bbox = build_loft_mesh_from_rings(
+            rings_by_cid[cid],
+            zs_by_cid[cid],
+            smooth_iters=smooth_iters,
+            smooth_factor=smooth_factor,
+            ring_vertex_target=rt,
+            ring_curvature_base=ring_curvature_base,
+        )
+        if len(pos) > 0:
+            cell_results[i] = (pos, idx, nrm, bbox)
 
     if not cell_results:
         return [], [], [], [], [0, 0, 0, 0, 0, 0]
