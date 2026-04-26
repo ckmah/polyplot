@@ -870,7 +870,7 @@ def build_loft_mesh_from_rings(
     for s in range(1, n_slices):
         k = int(_best_shift_nb(stack[s - 1], stack[s]))
         if k:
-            stack[s] = stack[s][(np.arange(common_n, dtype=np.int64) + k) % common_n]
+            stack[s] = np.concatenate([stack[s, k:], stack[s, :k]])
     z_arr = np.asarray(zs, dtype=np.float64)
 
     s_total, n_ring = stack.shape[0], stack.shape[1]
