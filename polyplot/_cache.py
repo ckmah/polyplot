@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 # Bump when tile format / mesh pipeline changes invalidate old caches.
-_CACHE_VERSION = b"polyplot_cache_v5\n"
+_CACHE_VERSION = b"polyplot_cache_v6\n"
 
 # SHA256 hex directory names under the cache root.
 _SHA256_DIR = re.compile(r"^[0-9a-f]{64}$")
@@ -20,24 +20,17 @@ _DEFAULT_MAX_CACHE_SHARDS = 64
 
 def gdf_cache_key(gdf, smooth: bool) -> str:
     """Stable SHA256 hex digest from cell_id, ZIndex, geometry WKB, and smooth flag."""
+    import shapely as _shp
     h = hashlib.sha256()
     h.update(_CACHE_VERSION)
     h.update(b"smooth=" + str(bool(smooth)).encode() + b"\n")
     df = gdf.sort_values(["cell_id", "ZIndex"], kind="mergesort")
-    for cid, zidx, geom in zip(
-        df["cell_id"].to_numpy(),
-        df["ZIndex"].to_numpy(),
-        df.geometry,
-        strict=True,
-    ):
-        h.update(str(cid).encode())
-        h.update(b"\0")
-        h.update(str(zidx).encode())
-        h.update(b"\0")
-        if geom is None or getattr(geom, "is_empty", True):
-            h.update(b"empty\n")
-        else:
-            h.update(geom.wkb)
+    h.update(repr(df["cell_id"].tolist()).encode())
+    h.update(repr(df["ZIndex"].tolist()).encode())
+    geoms = df.geometry.values
+    empty_mask = _shp.is_empty(geoms)
+    wkbs = _shp.to_wkb(geoms)
+    h.update(b"".join(b"empty\n" if bool(e) else w for e, w in zip(empty_mask, wkbs)))
     return h.hexdigest()
 
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Build a small spatially local subset of sample_data/liver_crop.parquet for the repo.
+"""Build a spatially local subset of sample_data/liver_crop.parquet for the repo.
 
-Picks a seed cell (smallest cell_id), takes the 50 cells whose dissolved centroids
-are nearest to the seed in the plane, then writes all rows for those cell_ids.
+Picks a seed cell (smallest cell_id by default), keeps the ``n`` cells whose
+dissolved centroids are nearest to the seed in the plane, then writes all rows
+for those cell_ids (default ``n=50``; use ``-n 500`` for the meshify benchmark
+notebook).
 
 Requires a local (untracked) copy of the full file at sample_data/liver_crop.parquet.
 """

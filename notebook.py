@@ -41,7 +41,7 @@ def _(mo):
             direction LR
             I["Tile server"] --> J["WebGL viewer"]
         end
-        A[("liver_crop_sample.parquet")] --> pre
+        A[("liver_crop_sample.parquet\n500 cells")] --> pre
         pre --> mesh
         mesh --> serve
     """)
@@ -51,27 +51,24 @@ def _(mo):
 
 @app.cell
 def _(gpd, pathlib):
-    """Load parquet; optionally crop to a few cells for fast tests.
-
-    Set ``CROP_MAX_CELLS = None`` to use the full file.
-    """
-    CROP_MAX_CELLS = None
-    CROP_MAX_ROWS = None
-
+    """Load the 500-cell subset (``scripts/make_liver_subset.py -n 500``)."""
     gdf = gpd.read_parquet(
-        pathlib.Path(__file__).parent / "sample_data" / "liver_crop.parquet"
+        pathlib.Path(__file__).parent / "sample_data" / "liver_crop_sample.parquet"
     )
-    if CROP_MAX_CELLS is not None:
-        _take = gdf["cell_id"].unique()[: int(CROP_MAX_CELLS)]
-        gdf = gdf[gdf["cell_id"].isin(_take)].copy()
-    if CROP_MAX_ROWS is not None and len(gdf) > CROP_MAX_ROWS:
-        gdf = gdf.iloc[: int(CROP_MAX_ROWS)].copy()
     return (gdf,)
 
 
 @app.cell
 def _(gdf, po):
-    po.plot(gdf, use_cache=False)
+    import time
+
+    n_cells = int(gdf["cell_id"].nunique())
+    t0 = time.perf_counter()
+    po.meshify(gdf, use_cache=False)
+    elapsed = time.perf_counter() - t0
+    per_cell = elapsed / n_cells if n_cells else 0.0
+    print(f"MESHIFY_SECONDS={elapsed:.6f}", flush=True)
+    print(f"MESHIFY_PER_CELL_SECONDS={per_cell:.6f}", flush=True)
     return
 
 

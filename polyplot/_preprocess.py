@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 
 
 def preprocess_gdf(
@@ -17,5 +17,5 @@ def preprocess_gdf(
     """
     out = gdf.copy()
     if simplify_tol > 0:
-        out["geometry"] = out["geometry"].simplify(simplify_tol, preserve_topology=True)
+        out["geometry"] = out["geometry"].simplify(simplify_tol, preserve_topology=False)
     return out

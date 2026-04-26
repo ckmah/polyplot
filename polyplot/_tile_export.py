@@ -16,15 +16,18 @@ import json
 import shutil
 import subprocess
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor as _TPE
 from pathlib import Path
 
 import numpy as np
-from joblib import Parallel, delayed
+
+from shapely.geometry import Polygon as _SGPolygon, MultiPolygon as _SGMultiPolygon
+import shapely as _shapely
 
 from polyplot._mesh_build import (
     _adaptive_ring_targets_from_scores,
     _cell_max_turning,
-    _collect_rings_for_cell,
+    _largest_polygon,
     build_loft_mesh_from_rings,
     cell_color,
 )
@@ -216,7 +219,7 @@ def _build_tile_data(
     z_scale = cfg.get("z_scale", 2.0)
     smooth_iters = cfg.get("smooth_iters", 1)
     smooth_factor = cfg.get("smooth_factor", 0.5)
-    ring_target = cfg.get("ring_target", 48)
+    ring_target = cfg.get("ring_target", 32)
     ring_cb = float(cfg.get("ring_curvature_base", 0.28))
     n_by_cid = _adaptive_ring_targets_from_scores(
         cell_ids,
@@ -233,29 +236,45 @@ def _build_tile_data(
     nrm_parts: list[np.ndarray] = []
     col_parts: list[np.ndarray] = []
     all_bboxes: list[tuple] = []
-    vert_offset = 0
 
-    for cell_id in cell_ids:
-        rt = ring_target if n_by_cid is None else n_by_cid[cell_id]
+    def _loft_cell(cid):
+        rt = ring_target if n_by_cid is None else n_by_cid[cid]
         pos, idx, nrm, bbox = build_loft_mesh_from_rings(
-            rings_by_cid[cell_id],
-            zs_by_cid[cell_id],
+            rings_by_cid[cid],
+            zs_by_cid[cid],
             smooth_iters=smooth_iters,
             smooth_factor=smooth_factor,
             ring_vertex_target=rt,
             ring_curvature_base=ring_cb,
         )
         if pos.shape[0] == 0:
-            continue
+            return None
         nv = pos.shape[0]
-        r, g, b = cell_colors[cell_id]
-        pos_parts.append(pos)
-        idx_parts.append(idx + vert_offset)
-        nrm_parts.append(nrm)
+        r, g, b = cell_colors[cid]
         rgb = np.empty((nv, 3), dtype=np.float32)
         rgb[:, 0] = r
         rgb[:, 1] = g
         rgb[:, 2] = b
+        return cid, pos, idx, nrm, rgb, bbox
+
+    raw = [_loft_cell(cid) for cid in cell_ids]
+
+    by_cid: dict = {}
+    for item in raw:
+        if item is None:
+            continue
+        cid, pos, idx, nrm, rgb, bbox = item
+        by_cid[cid] = (pos, idx, nrm, rgb, bbox)
+
+    vert_offset = 0
+    for cell_id in cell_ids:
+        if cell_id not in by_cid:
+            continue
+        pos, idx, nrm, rgb, bbox = by_cid[cell_id]
+        nv = pos.shape[0]
+        pos_parts.append(pos)
+        idx_parts.append(idx + vert_offset)
+        nrm_parts.append(nrm)
         col_parts.append(rgb)
         all_bboxes.append(bbox)
         vert_offset += nv
@@ -316,7 +335,7 @@ def export_tiles(
     cfg: dict,
     out_dir: Path,
     tile_size_xy: float | None = None,
-    target_tile_mb: float = 100.0,
+    target_tile_mb: float = 5.0,
     compress: bool = True,
     n_jobs: int = -1,
     show_progress: bool = True,
@@ -326,8 +345,8 @@ def export_tiles(
     tile_size_xy: XY grid cell size in CRS units. Pass None (default) to have
         auto_tile_size() compute a value targeting ~target_tile_mb MB per tile.
     show_progress: When True and running inside a marimo notebook, shows a
-        progress bar (processes tiles sequentially). Falls back to parallel
-        processing outside marimo.
+        progress bar while building tiles. Tiles are always processed
+        sequentially (no Joblib parallelization).
 
     Returns the parsed tiles.json dict (also written to <out_dir>/tiles.json).
     """
@@ -335,27 +354,89 @@ def export_tiles(
     tile_dir = out_dir / "tiles"
     tile_dir.mkdir(parents=True, exist_ok=True)
 
-    if tile_size_xy is None:
-        tile_size_xy = auto_tile_size(gdf_render, cfg, target_tile_mb)
+    # Compute cell centroids once; shared by tile sizing and tile assignment.
+    _cx = gdf_render.geometry.centroid.x.values
+    _cy = gdf_render.geometry.centroid.y.values
+    _ctmp = gdf_render[["cell_id"]].copy()
+    _ctmp["cx"] = _cx; _ctmp["cy"] = _cy
+    _cell_ctr = _ctmp.groupby("cell_id")[["cx", "cy"]].mean()
 
     all_cell_ids = sorted(gdf_render["cell_id"].unique().tolist())
     cell_colors = {cid: cell_color(i) for i, cid in enumerate(all_cell_ids)}
 
-    # Group once: avoids O(n_cells * n_rows) boolean slicing.
-    groups = {cid: df for cid, df in gdf_render.groupby("cell_id", sort=False)}
+    if tile_size_xy is None:
+        _nc2 = len(all_cell_ids)
+        if _nc2 < 2:
+            tile_size_xy = 200.0
+        else:
+            _avg_sl = len(gdf_render) / _nc2
+            _bpc = 48.0 * _avg_sl * 40.0
+            _tgt = max(1, int(target_tile_mb * 1024 * 1024 / _bpc))
+            _xr = float(_cell_ctr["cx"].max() - _cell_ctr["cx"].min())
+            _yr = float(_cell_ctr["cy"].max() - _cell_ctr["cy"].min())
+            _area = _xr * _yr
+            tile_size_xy = 200.0 if _area < 1.0 else float(np.sqrt(_tgt / (_nc2 / _area)))
 
-    # Pre-extract rings once per cell (used for adaptive sizing + meshing).
+    # Bulk-extract arrays once: avoids 1000 slow pandas __getitem__ calls + groupby.
     z_scale = cfg.get("z_scale", 2.0)
+    _all_geoms = gdf_render.geometry.values
+    _all_zvals = gdf_render["ZIndex"].to_numpy(dtype=np.float64)
+    _all_cids = gdf_render["cell_id"].values
+    _gmap: dict = defaultdict(list)
+    _zmap: dict = defaultdict(list)
+    for _cid, _g, _z in zip(_all_cids, _all_geoms, _all_zvals):
+        _gmap[_cid].append(_g)
+        _zmap[_cid].append(_z)
     rings_by_cid: dict = {}
     zs_by_cid: dict = {}
     scores_by_cid: dict = {}
     for cid in all_cell_ids:
-        rings, zs = _collect_rings_for_cell(groups[cid], z_scale)
-        rings_by_cid[cid] = rings
-        zs_by_cid[cid] = zs
-        scores_by_cid[cid] = _cell_max_turning(rings) if rings else 0.0
+        _polys: list = []
+        _zi: list = []
+        for _geom, _zi_v in zip(_gmap[cid], _zmap[cid], strict=True):
+            if isinstance(_geom, _SGPolygon):
+                _polys.append(_geom)
+                _zi.append(_zi_v)
+            elif isinstance(_geom, _SGMultiPolygon):
+                _subs = [g for g in _geom.geoms if not g.is_empty]
+                if _subs:
+                    _polys.append(max(_subs, key=lambda p: p.area))
+                    _zi.append(_zi_v)
+        if not _polys:
+            rings_by_cid[cid] = []
+            zs_by_cid[cid] = []
+            scores_by_cid[cid] = 0.0
+            continue
+        _ext = _shapely.get_exterior_ring(np.asarray(_polys, dtype=object))
+        _npts = _shapely.get_num_coordinates(_ext)
+        _coords = _shapely.get_coordinates(_ext, include_z=False)
+        _rings: list[np.ndarray] = []
+        _zs: list[float] = []
+        _off = 0
+        for _n, _zv in zip(_npts, _zi):
+            _nc = int(_n)
+            if _nc < 4:
+                _off += _nc
+                continue
+            _pts = _coords[_off:_off + _nc - 1]
+            _off += _nc
+            if len(_pts) < 3:
+                continue
+            _a2 = (_pts[:-1, 0]*_pts[1:, 1] - _pts[1:, 0]*_pts[:-1, 1]).sum()
+            _a2 += _pts[-1, 0]*_pts[0, 1] - _pts[0, 0]*_pts[-1, 1]
+            if _a2 < 0:
+                _pts = _pts[::-1]
+            _rings.append(_pts)
+            _zs.append(float(_zv) * z_scale)
+        rings_by_cid[cid] = _rings
+        zs_by_cid[cid] = _zs
+        scores_by_cid[cid] = _cell_max_turning(_rings)
 
-    assignments = compute_tile_grid(gdf_render, tile_size_xy)
+    _min_x = float(_cell_ctr["cx"].min())
+    _min_y = float(_cell_ctr["cy"].min())
+    _t_cols = ((_cell_ctr["cx"].values - _min_x) / tile_size_xy).astype(int)
+    _t_rows = ((_cell_ctr["cy"].values - _min_y) / tile_size_xy).astype(int)
+    assignments = {cid: (int(c), int(r)) for cid, c, r in zip(_cell_ctr.index, _t_cols, _t_rows)}
 
     tile_cells: dict = defaultdict(list)
     for cell_id, key in assignments.items():
@@ -363,33 +444,7 @@ def export_tiles(
 
     sorted_tiles = sorted(tile_cells.items())
 
-    def _process_tile(tile_key, cell_ids):
-        col, row = tile_key
-        glb_bytes, bbox = _build_tile_data(
-            cell_ids,
-            rings_by_cid,
-            zs_by_cid,
-            scores_by_cid,
-            cfg,
-            cell_colors,
-        )
-        if not glb_bytes:
-            return None
-        name = f"tile_{col}_{row}.glb"
-        _write_glb(tile_dir / name, glb_bytes, compress)
-
-        cx = (bbox[0] + bbox[3]) / 2
-        cy = (bbox[1] + bbox[4]) / 2
-        return {
-            "col": col,
-            "row": row,
-            "bbox": bbox,
-            "center_xy": [cx, cy],
-            "cell_count": len(cell_ids),
-            "glb": f"tiles/{name}",
-        }
-
-    # Detect marimo context for progress bar
+    # Phase 1: Build tile GLB bytes sequentially (parallel lofting serializes on GIL).
     _in_marimo = False
     if show_progress:
         try:
@@ -400,19 +455,69 @@ def export_tiles(
 
     if _in_marimo:
         import marimo as mo
-        results = []
+        built = []
         with mo.status.progress_bar(
             total=len(sorted_tiles),
             title="Building tiles…",
             remove_on_exit=True,
         ) as bar:
             for key, cells in sorted_tiles:
-                results.append(_process_tile(key, cells))
+                glb, bbox = _build_tile_data(cells, rings_by_cid, zs_by_cid, scores_by_cid, cfg, cell_colors)
+                built.append((key, cells, glb, bbox))
                 bar.update()
     else:
-        results = Parallel(n_jobs=n_jobs, prefer="threads")(
-            delayed(_process_tile)(key, cells) for key, cells in sorted_tiles
-        )
+        built = [
+            (key, cells) + _build_tile_data(cells, rings_by_cid, zs_by_cid, scores_by_cid, cfg, cell_colors)
+            for key, cells in sorted_tiles
+        ]
+
+    # Phase 2: Write raw files; run gltfpack in parallel (subprocess releases GIL).
+    pending: list = []
+    for tile_key, cell_ids, glb_bytes, bbox in built:
+        if not glb_bytes:
+            continue
+        col, row = tile_key
+        name = f"tile_{col}_{row}.glb"
+        dst = tile_dir / name
+        if compress and shutil.which("gltfpack"):
+            src = dst.with_suffix(".tmp.glb")
+            src.write_bytes(glb_bytes)
+        else:
+            dst.write_bytes(glb_bytes)
+            src = None
+        pending.append((src, dst, col, row, cell_ids, bbox, name))
+
+    def _compress_pending(item):
+        src, dst = item[0], item[1]
+        if src is not None:
+            if _compress_with_gltfpack(src, dst):
+                src.unlink()
+            else:
+                src.rename(dst)
+
+    import os as _os
+    _compress_items = [it for it in pending if it[0] is not None]
+    _nw = min(_os.cpu_count() or 1, len(_compress_items), 16)
+    if _nw > 1:
+        with _TPE(max_workers=_nw) as pool:
+            list(pool.map(_compress_pending, _compress_items))
+    else:
+        for it in _compress_items:
+            _compress_pending(it)
+
+    results = []
+    for src, dst, col, row, cell_ids, bbox, name in pending:
+        if dst.exists():
+            cx = (bbox[0] + bbox[3]) / 2
+            cy = (bbox[1] + bbox[4]) / 2
+            results.append({
+                "col": col, "row": row, "bbox": bbox,
+                "center_xy": [cx, cy],
+                "cell_count": len(cell_ids),
+                "glb": f"tiles/{name}",
+            })
+        else:
+            results.append(None)
 
     tiles = [r for r in results if r is not None]
 
