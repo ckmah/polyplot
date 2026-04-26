@@ -116,6 +116,34 @@ def _curvature_weights_nb(ring: np.ndarray, base: float) -> np.ndarray:
 
 
 @njit(cache=True, fastmath=True, nogil=True)
+def _post_smooth_nb(side_xy: np.ndarray, side_ref: np.ndarray) -> None:
+    """Restore per-slice centroid and mean radius from pre-smooth reference, in-place."""
+    eps = 1e-12
+    n_slices = side_xy.shape[0]
+    n_ring = side_xy.shape[1]
+    for s in range(n_slices):
+        cx_ref = 0.0; cy_ref = 0.0
+        cx_cur = 0.0; cy_cur = 0.0
+        for i in range(n_ring):
+            cx_ref += side_ref[s, i, 0]; cy_ref += side_ref[s, i, 1]
+            cx_cur += side_xy[s, i, 0];  cy_cur += side_xy[s, i, 1]
+        cx_ref /= n_ring; cy_ref /= n_ring
+        cx_cur /= n_ring; cy_cur /= n_ring
+        r_ref = 0.0; r_cur = 0.0
+        for i in range(n_ring):
+            dx = side_ref[s, i, 0] - cx_ref; dy = side_ref[s, i, 1] - cy_ref
+            r_ref += (dx * dx + dy * dy) ** 0.5
+            dx = side_xy[s, i, 0] - cx_cur; dy = side_xy[s, i, 1] - cy_cur
+            r_cur += (dx * dx + dy * dy) ** 0.5
+        r_ref /= n_ring; r_cur /= n_ring
+        scale = r_ref / r_cur if (r_ref > eps and r_cur > eps) else 1.0
+        for i in range(n_ring):
+            dx = side_xy[s, i, 0] - cx_cur; dy = side_xy[s, i, 1] - cy_cur
+            side_xy[s, i, 0] = cx_ref + scale * dx
+            side_xy[s, i, 1] = cy_ref + scale * dy
+
+
+@njit(cache=True, fastmath=True, nogil=True)
 def _refine_shift_nb(prev: np.ndarray, curr: np.ndarray, k0: int, win: int) -> int:
     """Local window search around k0; best cyclic shift in [k0-win, k0+win]."""
     n = prev.shape[0]
@@ -956,15 +984,7 @@ def build_loft_mesh_from_rings(
         # - restore per-slice XY centroid + mean radius to pre-smooth values
         # - sequentially roll slice s to match s-1 for strip correspondence
         side_xy = positions[:n_side_verts, :2].reshape(s_total, n_ring, 2).astype(np.float64, copy=False)
-        eps = 1e-12
-        c_ref = side_ref.mean(axis=1, keepdims=True)         # (S, 1, 2)
-        c_cur = side_xy.mean(axis=1, keepdims=True)          # (S, 1, 2)
-        ref0 = side_ref - c_ref                              # (S, N, 2)
-        cur0 = side_xy - c_cur                               # (S, N, 2)
-        r_ref = np.sqrt((ref0 * ref0).sum(axis=2)).mean(axis=1)  # (S,)
-        r_cur = np.sqrt((cur0 * cur0).sum(axis=2)).mean(axis=1)  # (S,)
-        scale = np.where((r_ref > eps) & (r_cur > eps), r_ref / r_cur, 1.0)[:, None, None]
-        side_xy[:] = c_ref + scale * cur0
+        _post_smooth_nb(side_xy, side_ref)
         positions[:n_side_verts, 2] = np.repeat(z_arr.astype(np.float32), n_ring)
 
         positions[:n_side_verts, :2] = side_xy.reshape(-1, 2).astype(np.float32, copy=False)
