@@ -6,6 +6,37 @@ import trimesh
 
 
 @njit(cache=True, fastmath=True, nogil=True)
+def _arc_resample_nb(ring: np.ndarray, n_points: int) -> np.ndarray:
+    """Uniform arc-length resample of closed ring. O(n+n_points), zero alloc beyond output."""
+    n = ring.shape[0]
+    out = np.empty((n_points, 2), dtype=np.float64)
+    cum = np.empty(n + 1, dtype=np.float64)
+    cum[0] = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        dx = ring[j, 0] - ring[i, 0]
+        dy = ring[j, 1] - ring[i, 1]
+        cum[i + 1] = cum[i] + (dx * dx + dy * dy) ** 0.5
+    total = cum[n]
+    if total < 1e-15:
+        for i in range(n_points):
+            out[i, 0] = 0.0; out[i, 1] = 0.0
+        return out
+    step = total / n_points
+    seg = 0
+    for i in range(n_points):
+        t = i * step
+        while seg < n - 1 and cum[seg + 1] <= t:
+            seg += 1
+        span = cum[seg + 1] - cum[seg]
+        frac = (t - cum[seg]) / span if span > 1e-15 else 0.0
+        k = (seg + 1) % n
+        out[i, 0] = ring[seg, 0] + frac * (ring[k, 0] - ring[seg, 0])
+        out[i, 1] = ring[seg, 1] + frac * (ring[k, 1] - ring[seg, 1])
+    return out
+
+
+@njit(cache=True, fastmath=True, nogil=True)
 def _accumulate_normals_nb(
     normals: np.ndarray, faces: np.ndarray,
     fn0: np.ndarray, fn1: np.ndarray, fn2: np.ndarray,
@@ -184,18 +215,7 @@ def _arc_resample_closed(ring: np.ndarray, n_points: int) -> np.ndarray:
     """Uniform arc-length samples on a closed polyline (for alignment only)."""
     if n_points < 2 or len(ring) < 3:
         return np.zeros((n_points, 2), dtype=np.float64)
-    coords = np.vstack([ring, ring[0:1]])
-    diffs = np.diff(coords, axis=0)
-    seg_lens = np.hypot(diffs[:, 0], diffs[:, 1])
-    cumlen = np.concatenate([[0.0], np.cumsum(seg_lens)])
-    total = cumlen[-1]
-    if total < 1e-15:
-        return np.zeros((n_points, 2), dtype=np.float64)
-    ts = np.linspace(0.0, total, n_points, endpoint=False)
-    return np.stack([
-        np.interp(ts, cumlen, coords[:, 0]),
-        np.interp(ts, cumlen, coords[:, 1]),
-    ], axis=1)
+    return _arc_resample_nb(np.ascontiguousarray(ring, dtype=np.float64), n_points)
 
 
 def _best_roll_fft(prev: np.ndarray, curr: np.ndarray) -> int:
