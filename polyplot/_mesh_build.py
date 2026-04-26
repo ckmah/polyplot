@@ -86,37 +86,54 @@ def _accumulate_normals_nb(
 
 
 @njit(cache=True, fastmath=True, nogil=True)
-def _curvature_weights_nb(ring: np.ndarray, base: float) -> np.ndarray:
-    """Compute curvature-weighted edge lengths for ring resampling."""
+def _curvature_resample_nb(ring: np.ndarray, n_target: int, base: float) -> np.ndarray:
+    """Full curvature-weighted ring resample in Numba; no numpy allocs."""
     n = ring.shape[0]
     edge_w = np.empty(n, dtype=np.float64)
     for i in range(n):
-        prv = ring[(i - 1) % n]
-        cur = ring[i]
-        nxt = ring[(i + 1) % n]
-        vp0 = cur[0] - prv[0]; vp1 = cur[1] - prv[1]
-        vn0 = nxt[0] - cur[0]; vn1 = nxt[1] - cur[1]
+        prv_i = (i - 1) % n
+        nxt_i = (i + 1) % n
+        nxt2_i = (i + 2) % n
+        vp0 = ring[i, 0] - ring[prv_i, 0]; vp1 = ring[i, 1] - ring[prv_i, 1]
+        vn0 = ring[nxt_i, 0] - ring[i, 0]; vn1 = ring[nxt_i, 1] - ring[i, 1]
         lp = (vp0*vp0 + vp1*vp1)**0.5 + 1e-12
         ln = (vn0*vn0 + vn1*vn1)**0.5 + 1e-12
-        dot = (vp0*vn0 + vp1*vn1) / (lp * ln)
-        if dot < -1.0: dot = -1.0
-        if dot > 1.0: dot = 1.0
-        ep_d = (1.0 - dot) + base * 3.141592653589793
-        nxt2 = ring[(i + 1) % n]
-        nxt2_0 = nxt2[0]; nxt2_1 = nxt2[1]
-        vn2_0 = nxt2_0 - cur[0]; vn2_1 = nxt2_1 - cur[1]
-        ln2 = (vn2_0*vn2_0 + vn2_1*vn2_1)**0.5 + 1e-12
-        nxt3 = ring[(i + 2) % n]
-        vp3_0 = nxt2_0 - cur[0]; vp3_1 = nxt2_1 - cur[1]
-        vn3_0 = nxt3[0] - nxt2_0; vn3_1 = nxt3[1] - nxt2_1
+        d = (vp0*vn0 + vp1*vn1) / (lp * ln)
+        if d < -1.0: d = -1.0
+        if d > 1.0: d = 1.0
+        vp3_0 = ring[nxt_i, 0] - ring[i, 0]; vp3_1 = ring[nxt_i, 1] - ring[i, 1]
+        vn3_0 = ring[nxt2_i, 0] - ring[nxt_i, 0]; vn3_1 = ring[nxt2_i, 1] - ring[nxt_i, 1]
         lp3 = (vp3_0*vp3_0 + vp3_1*vp3_1)**0.5 + 1e-12
         ln3 = (vn3_0*vn3_0 + vn3_1*vn3_1)**0.5 + 1e-12
-        dot3 = (vp3_0*vn3_0 + vp3_1*vn3_1) / (lp3 * ln3)
-        if dot3 < -1.0: dot3 = -1.0
-        if dot3 > 1.0: dot3 = 1.0
-        ep_d2 = (1.0 - dot3) + base * 3.141592653589793
+        d3 = (vp3_0*vn3_0 + vp3_1*vn3_1) / (lp3 * ln3)
+        if d3 < -1.0: d3 = -1.0
+        if d3 > 1.0: d3 = 1.0
+        ep_d = (1.0 - d) + base * 3.141592653589793
+        ep_d2 = (1.0 - d3) + base * 3.141592653589793
+        ln2 = ((ring[nxt_i, 0] - ring[i, 0])**2 + (ring[nxt_i, 1] - ring[i, 1])**2)**0.5 + 1e-12
         edge_w[i] = ln2 * 0.5 * (ep_d + ep_d2)
-    return edge_w
+    total = 0.0
+    for w in edge_w:
+        total += w
+    if total < 1e-12:
+        return np.zeros((n_target, 2), dtype=np.float64)
+    cum = np.empty(n + 1, dtype=np.float64)
+    cum[0] = 0.0
+    for i in range(n):
+        cum[i + 1] = cum[i] + edge_w[i]
+    out = np.empty((n_target, 2), dtype=np.float64)
+    step = total / n_target
+    seg = 0
+    for i in range(n_target):
+        t = i * step
+        while seg < n - 1 and cum[seg + 1] <= t:
+            seg += 1
+        span = cum[seg + 1] - cum[seg]
+        frac = (t - cum[seg]) / span if span > 1e-15 else 0.0
+        k = (seg + 1) % n
+        out[i, 0] = ring[seg, 0] + frac * (ring[k, 0] - ring[seg, 0])
+        out[i, 1] = ring[seg, 1] + frac * (ring[k, 1] - ring[seg, 1])
+    return out
 
 
 @njit(cache=True, fastmath=True, nogil=True)
@@ -247,33 +264,8 @@ def _curvature_resample(
     if n == n_target and not redistribute_equal:
         return ring
 
-    nxt = np.empty_like(ring); nxt[:-1] = ring[1:]; nxt[-1] = ring[0]
-    prv = np.empty_like(ring); prv[1:] = ring[:-1]; prv[0] = ring[-1]
-    v_prev = ring - prv
-    v_next = nxt - ring
-    lp = np.hypot(v_prev[:, 0], v_prev[:, 1]) + 1e-12
-    ln = np.hypot(v_next[:, 0], v_next[:, 1]) + 1e-12
-    dot = np.clip((v_prev * v_next).sum(axis=1) / (lp * ln), -1.0, 1.0)
-    turning = np.arccos(dot)
-
-    endpoint_density = turning + base * np.pi
-    ep_next = np.empty_like(endpoint_density)
-    ep_next[:-1] = endpoint_density[1:]; ep_next[-1] = endpoint_density[0]
-    edge_w = ln * 0.5 * (endpoint_density + ep_next)
-    cum = np.concatenate([[0.0], np.cumsum(edge_w)])
-    total = cum[-1]
-    if total < 1e-12:
-        return _arc_resample_closed(ring, n_target)
-
-    ts = np.linspace(0.0, total, n_target, endpoint=False)
-    idx = np.searchsorted(cum, ts, side="right") - 1
-    idx = np.clip(idx, 0, n - 1)
-    span = cum[idx + 1] - cum[idx]
-    span = np.where(span > 1e-12, span, 1.0)
-    frac = ((ts - cum[idx]) / span).reshape(-1, 1)
-    a = ring[idx]
-    b = ring[(idx + 1) % n]
-    return a + frac * (b - a)
+    r = ring if (ring.flags["C_CONTIGUOUS"] and ring.dtype == np.float64)         else np.ascontiguousarray(ring, dtype=np.float64)
+    return _curvature_resample_nb(r, int(n_target), float(base))
 
 
 def _arc_resample_closed(ring: np.ndarray, n_points: int) -> np.ndarray:
