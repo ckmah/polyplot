@@ -447,31 +447,41 @@ def _collect_rings_for_cell(gdf_cell, z_scale: float) -> tuple[list[np.ndarray],
     return rings_2d, zs
 
 
+@njit(cache=True, fastmath=True, nogil=True)
+def _cell_max_turning_nb(flat_xy: np.ndarray, ring_lens: np.ndarray) -> float:
+    """Min cosine across all turning angles; caller takes acos for max angle."""
+    min_cos = 2.0
+    offset = 0
+    for ri in range(len(ring_lens)):
+        n = ring_lens[ri]
+        if n < 3:
+            offset += n
+            continue
+        for i in range(n):
+            i_prev = i - 1 if i > 0 else n - 1
+            i_next = i + 1 if i < n - 1 else 0
+            e1x = flat_xy[offset + i, 0] - flat_xy[offset + i_prev, 0]
+            e1y = flat_xy[offset + i, 1] - flat_xy[offset + i_prev, 1]
+            e2x = flat_xy[offset + i_next, 0] - flat_xy[offset + i, 0]
+            e2y = flat_xy[offset + i_next, 1] - flat_xy[offset + i, 1]
+            l1 = (e1x * e1x + e1y * e1y) ** 0.5 + 1e-12
+            l2 = (e2x * e2x + e2y * e2y) ** 0.5 + 1e-12
+            c = (e1x * e2x + e1y * e2y) / (l1 * l2)
+            if c < min_cos:
+                min_cos = c
+        offset += n
+    return min_cos
+
+
 def _cell_max_turning(rings: list[np.ndarray]) -> float:
     """Largest vertex turning angle (radians) across all rings; 0 if empty."""
     import math as _m
     if not rings:
         return 0.0
-    max_n = max(len(r) for r in rings)
-    edges = np.empty((max_n, 2), dtype=np.float64)
-    v_prev = np.empty((max_n, 2), dtype=np.float64)
-    mx = 0.0
-    for ring in rings:
-        n = len(ring)
-        if n < 3:
-            continue
-        edges[:n - 1] = ring[1:] - ring[:-1]
-        edges[n - 1] = ring[0] - ring[-1]
-        v_prev[0] = edges[n - 1]
-        v_prev[1:n] = edges[:n - 1]
-        e = edges[:n]; vp = v_prev[:n]
-        lp = np.hypot(vp[:, 0], vp[:, 1]) + 1e-12
-        ln = np.hypot(e[:, 0], e[:, 1]) + 1e-12
-        d = float(((vp * e).sum(axis=1) / (lp * ln)).min())
-        cur = _m.acos(max(-1.0, min(1.0, d)))
-        if cur > mx:
-            mx = cur
-    return mx
+    flat_xy = np.concatenate(rings)
+    ring_lens = np.array([len(r) for r in rings], dtype=np.int64)
+    mc = _cell_max_turning_nb(flat_xy, ring_lens)
+    return _m.acos(max(-1.0, min(1.0, mc)))
 
 
 def _adaptive_ring_targets_from_scores(
