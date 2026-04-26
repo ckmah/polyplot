@@ -39,6 +39,35 @@ def _arc_resample_nb(ring: np.ndarray, n_points: int) -> np.ndarray:
 
 
 @njit(cache=True, fastmath=True, nogil=True)
+def _compute_normals_nb(pos_f32: np.ndarray, faces_i64: np.ndarray) -> np.ndarray:
+    """Fused cross product + scatter-accumulate + normalize in one Numba pass."""
+    nv = pos_f32.shape[0]
+    nf = faces_i64.shape[0]
+    normals = np.zeros((nv, 3), dtype=np.float64)
+    for fi in range(nf):
+        a_i = faces_i64[fi, 0]; b_i = faces_i64[fi, 1]; c_i = faces_i64[fi, 2]
+        ax = pos_f32[a_i, 0]; ay = pos_f32[a_i, 1]; az = pos_f32[a_i, 2]
+        bx = pos_f32[b_i, 0]; by = pos_f32[b_i, 1]; bz = pos_f32[b_i, 2]
+        cx = pos_f32[c_i, 0]; cy = pos_f32[c_i, 1]; cz = pos_f32[c_i, 2]
+        e1x = bx - ax; e1y = by - ay; e1z = bz - az
+        e2x = cx - ax; e2y = cy - ay; e2z = cz - az
+        nx = e1y * e2z - e1z * e2y
+        ny = e1z * e2x - e1x * e2z
+        nz = e1x * e2y - e1y * e2x
+        normals[a_i, 0] += nx; normals[a_i, 1] += ny; normals[a_i, 2] += nz
+        normals[b_i, 0] += nx; normals[b_i, 1] += ny; normals[b_i, 2] += nz
+        normals[c_i, 0] += nx; normals[c_i, 1] += ny; normals[c_i, 2] += nz
+    out = np.empty((nv, 3), dtype=np.float32)
+    for i in range(nv):
+        s = normals[i, 0] ** 2 + normals[i, 1] ** 2 + normals[i, 2] ** 2
+        inv = 1.0 / s ** 0.5 if s > 1e-24 else 1.0
+        out[i, 0] = normals[i, 0] * inv
+        out[i, 1] = normals[i, 1] * inv
+        out[i, 2] = normals[i, 2] * inv
+    return out
+
+
+@njit(cache=True, fastmath=True, nogil=True)
 def _accumulate_normals_nb(
     normals: np.ndarray, faces: np.ndarray,
     fn0: np.ndarray, fn1: np.ndarray, fn2: np.ndarray,
@@ -754,22 +783,7 @@ def _compute_vertex_normals(positions: np.ndarray,
     if n_verts == 0 or indices_flat.shape[0] == 0:
         return np.zeros((n_verts, 3), dtype=np.float32)
     faces = indices_flat.reshape(-1, 3).astype(np.int64, copy=False)
-    pos64 = positions.astype(np.float64, copy=False)
-    v0 = pos64[faces[:, 0]]
-    v1 = pos64[faces[:, 1]]
-    v2 = pos64[faces[:, 2]]
-    a = v1 - v0; b = v2 - v0
-    fn0_ = a[:, 1]*b[:, 2] - a[:, 2]*b[:, 1]
-    fn1_ = a[:, 2]*b[:, 0] - a[:, 0]*b[:, 2]
-    fn2_ = a[:, 0]*b[:, 1] - a[:, 1]*b[:, 0]
-    normals = np.zeros((n_verts, 3), dtype=np.float64)
-    _accumulate_normals_nb(normals, faces.astype(np.int64),
-                           fn0_.astype(np.float64), fn1_.astype(np.float64),
-                           fn2_.astype(np.float64))
-    sqlen = (normals * normals).sum(axis=1, keepdims=True)
-    lens = np.sqrt(sqlen)
-    lens = np.where(lens > 1e-12, lens, 1.0)
-    return (normals / lens).astype(np.float32)
+    return _compute_normals_nb(positions.astype(np.float32, copy=False), faces)
 
 
 # ---------------------------------------------------------------------------
