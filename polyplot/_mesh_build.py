@@ -4,6 +4,7 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from numba import njit
 import trimesh
+import shapely as _shapely
 
 
 @njit(cache=True, fastmath=True, nogil=True)
@@ -137,10 +138,12 @@ def _largest_polygon(geom):
 
 
 def _ring_vertices(polygon) -> np.ndarray:
-    coords = np.asarray(polygon.exterior.coords, dtype=np.float64)
+    coords = _shapely.get_coordinates(
+        _shapely.get_exterior_ring(polygon), include_z=False
+    )
     if len(coords) < 4:
         return np.zeros((0, 2), dtype=np.float64)
-    pts = coords[:-1, :2]
+    pts = coords[:-1]
     if len(pts) < 3:
         return np.zeros((0, 2), dtype=np.float64)
     # Shoelace winding check: ensure CCW (positive area).
