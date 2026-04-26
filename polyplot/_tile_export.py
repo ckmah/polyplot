@@ -21,10 +21,12 @@ from pathlib import Path
 
 import numpy as np
 
+import shapely as _shapely
+
 from polyplot._mesh_build import (
     _adaptive_ring_targets_from_scores,
     _cell_max_turning,
-    _collect_rings_for_cell,
+    _largest_polygon,
     build_loft_mesh_from_rings,
     cell_color,
 )
@@ -357,19 +359,56 @@ def export_tiles(
     all_cell_ids = sorted(gdf_render["cell_id"].unique().tolist())
     cell_colors = {cid: cell_color(i) for i, cid in enumerate(all_cell_ids)}
 
-    # Group once: avoids O(n_cells * n_rows) boolean slicing.
-    groups = {cid: df for cid, df in gdf_render.groupby("cell_id", sort=False)}
-
-    # Pre-extract rings once per cell (used for adaptive sizing + meshing).
+    # Bulk-extract arrays once: avoids 1000 slow pandas __getitem__ calls + groupby.
     z_scale = cfg.get("z_scale", 2.0)
+    _all_geoms = gdf_render.geometry.values
+    _all_zvals = gdf_render["ZIndex"].to_numpy(dtype=np.float64)
+    _all_cids = gdf_render["cell_id"].values
+    _gmap: dict = defaultdict(list)
+    _zmap: dict = defaultdict(list)
+    for _cid, _g, _z in zip(_all_cids, _all_geoms, _all_zvals):
+        _gmap[_cid].append(_g)
+        _zmap[_cid].append(_z)
     rings_by_cid: dict = {}
     zs_by_cid: dict = {}
     scores_by_cid: dict = {}
     for cid in all_cell_ids:
-        rings, zs = _collect_rings_for_cell(groups[cid], z_scale)
-        rings_by_cid[cid] = rings
-        zs_by_cid[cid] = zs
-        scores_by_cid[cid] = _cell_max_turning(rings) if rings else 0.0
+        _polys: list = []
+        _zi: list = []
+        for _geom, _zi_v in zip(_gmap[cid], _zmap[cid], strict=True):
+            _p = _largest_polygon(_geom)
+            if _p is not None:
+                _polys.append(_p)
+                _zi.append(_zi_v)
+        if not _polys:
+            rings_by_cid[cid] = []
+            zs_by_cid[cid] = []
+            scores_by_cid[cid] = 0.0
+            continue
+        _ext = _shapely.get_exterior_ring(np.asarray(_polys, dtype=object))
+        _npts = _shapely.get_num_coordinates(_ext)
+        _coords = _shapely.get_coordinates(_ext, include_z=False)
+        _rings: list[np.ndarray] = []
+        _zs: list[float] = []
+        _off = 0
+        for _n, _zv in zip(_npts, _zi):
+            _nc = int(_n)
+            if _nc < 4:
+                _off += _nc
+                continue
+            _pts = _coords[_off:_off + _nc - 1]
+            _off += _nc
+            if len(_pts) < 3:
+                continue
+            _a2 = (_pts[:-1, 0]*_pts[1:, 1] - _pts[1:, 0]*_pts[:-1, 1]).sum()
+            _a2 += _pts[-1, 0]*_pts[0, 1] - _pts[0, 0]*_pts[-1, 1]
+            if _a2 < 0:
+                _pts = _pts[::-1]
+            _rings.append(_pts)
+            _zs.append(float(_zv) * z_scale)
+        rings_by_cid[cid] = _rings
+        zs_by_cid[cid] = _zs
+        scores_by_cid[cid] = _cell_max_turning(_rings)
 
     assignments = compute_tile_grid(gdf_render, tile_size_xy)
 
