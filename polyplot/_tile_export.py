@@ -21,6 +21,7 @@ from pathlib import Path
 import numpy as np
 from joblib import Parallel, delayed
 
+from polyplot import _tune as _poly_tune
 from polyplot._mesh_build import (
     _adaptive_ring_targets_from_scores,
     _cell_max_turning,
@@ -255,7 +256,7 @@ def _build_tile_data(
         return cid, pos, idx, nrm, rgb, bbox
 
     if len(cell_ids) > 1:
-        raw = Parallel(n_jobs=-1, prefer="threads")(
+        raw = Parallel(**_poly_tune.loft_parallel_kw())(
             delayed(_loft_cell)(cid) for cid in cell_ids
         )
     else:
@@ -431,7 +432,7 @@ def export_tiles(
                 results.append(_process_tile(key, cells))
                 bar.update()
     else:
-        results = Parallel(n_jobs=n_jobs, prefer="threads")(
+        results = Parallel(**_poly_tune.tile_parallel_kw(n_jobs))(
             delayed(_process_tile)(key, cells) for key, cells in sorted_tiles
         )
 
