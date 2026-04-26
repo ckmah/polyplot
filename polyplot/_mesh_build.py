@@ -909,13 +909,13 @@ def build_loft_mesh_from_rings(
         nb_v = np.concatenate([side_faces[:, 0], side_faces[:, 0],
                                 side_faces[:, 1], side_faces[:, 1],
                                 side_faces[:, 2], side_faces[:, 2]])
+        _sums = np.empty((n_v, 3), dtype=np.float64)
         for _it in range(int(smooth_iters)):
             for _lam in (lam, mu):
                 nb_coords = verts[nb_a]
-                sums = np.zeros_like(verts)
                 for col in range(3):
-                    sums[:, col] = np.bincount(nb_v, weights=nb_coords[:, col], minlength=n_v)
-                laplacian = sums / safe_cnt[:, None] - verts
+                    _sums[:, col] = np.bincount(nb_v, weights=nb_coords[:, col], minlength=n_v)
+                laplacian = _sums / safe_cnt[:, None] - verts
                 verts += _lam * laplacian
         positions = verts.astype(np.float32, copy=False)
 
