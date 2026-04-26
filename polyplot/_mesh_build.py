@@ -7,6 +7,8 @@ import numpy as np
 from numba import njit
 import trimesh
 
+from polyplot import _autoresearch_knobs as _ak
+
 
 def _largest_polygon(geom):
     from shapely.geometry import MultiPolygon, Polygon
@@ -158,14 +160,14 @@ def _align_ring_min_sqdist(prev: np.ndarray, curr: np.ndarray) -> np.ndarray:
     n = len(prev)
     if n == 0 or len(curr) != n:
         return _align_to(prev, curr)
-    if n > 512:
+    if n > int(_ak.ALIGN_FFT_ONLY_MIN_N):
         return np.roll(curr, -_best_roll_fft(prev, curr), axis=0)
     # For moderate N, do a robust but sub-quadratic search:
     # - FFT gives the best correlation shift in O(N log N)
     # - refine by evaluating a small local window in exact sqdist space
     # Keep exhaustive for very small rings where overhead dominates and
     # symmetry-induced local minima are common.
-    if n <= 128:
+    if n <= int(_ak.ALIGN_EXHAUSTIVE_MAX_N):
         best_k = 0
         best_cost = np.inf
         for k in range(n):
@@ -177,7 +179,7 @@ def _align_ring_min_sqdist(prev: np.ndarray, curr: np.ndarray) -> np.ndarray:
         return np.roll(curr, -best_k, axis=0)
 
     k0 = int(_best_roll_fft(prev, curr))
-    win = 16
+    win = int(_ak.ALIGN_REFINE_WINDOW)
     best_k = k0
     best_cost = np.inf
     for dk in range(-win, win + 1):
@@ -550,7 +552,7 @@ def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
     tris[flip] = tris[flip][:, [0, 2, 1]]
 
     # Lawson flipping: up to O(n^2) flips in worst case; tiny n (<=128).
-    max_passes = 4 * n
+    max_passes = int(_ak.CDT_PASS_MULTIPLIER) * n
     for _ in range(max_passes):
         edge_to_tri: dict[tuple[int, int], list[int]] = defaultdict(list)
         for ti, t in enumerate(tris):
