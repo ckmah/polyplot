@@ -19,9 +19,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
-from joblib import Parallel, delayed
 
-from polyplot import _tune as _poly_tune
 from polyplot._mesh_build import (
     _adaptive_ring_targets_from_scores,
     _cell_max_turning,
@@ -255,12 +253,7 @@ def _build_tile_data(
         rgb[:, 2] = b
         return cid, pos, idx, nrm, rgb, bbox
 
-    if len(cell_ids) > 1:
-        raw = Parallel(**_poly_tune.loft_parallel_kw())(
-            delayed(_loft_cell)(cid) for cid in cell_ids
-        )
-    else:
-        raw = [_loft_cell(cell_ids[0])] if cell_ids else []
+    raw = [_loft_cell(cid) for cid in cell_ids]
 
     by_cid: dict = {}
     for item in raw:
@@ -348,8 +341,8 @@ def export_tiles(
     tile_size_xy: XY grid cell size in CRS units. Pass None (default) to have
         auto_tile_size() compute a value targeting ~target_tile_mb MB per tile.
     show_progress: When True and running inside a marimo notebook, shows a
-        progress bar (processes tiles sequentially). Falls back to parallel
-        processing outside marimo.
+        progress bar while building tiles. Tiles are always processed
+        sequentially (no Joblib parallelization).
 
     Returns the parsed tiles.json dict (also written to <out_dir>/tiles.json).
     """
@@ -432,9 +425,7 @@ def export_tiles(
                 results.append(_process_tile(key, cells))
                 bar.update()
     else:
-        results = Parallel(**_poly_tune.tile_parallel_kw(n_jobs))(
-            delayed(_process_tile)(key, cells) for key, cells in sorted_tiles
-        )
+        results = [_process_tile(key, cells) for key, cells in sorted_tiles]
 
     tiles = [r for r in results if r is not None]
 

@@ -62,10 +62,13 @@ def _(gpd, pathlib):
 def _(gdf, po):
     import time
 
+    n_cells = int(gdf["cell_id"].nunique())
     t0 = time.perf_counter()
     po.meshify(gdf, use_cache=False)
     elapsed = time.perf_counter() - t0
+    per_cell = elapsed / n_cells if n_cells else 0.0
     print(f"MESHIFY_SECONDS={elapsed:.6f}", flush=True)
+    print(f"MESHIFY_PER_CELL_SECONDS={per_cell:.6f}", flush=True)
     return
 
 

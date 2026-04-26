@@ -66,8 +66,8 @@ def _(base64, io, mo, pathlib, plt, results_path):
             if best is not None:
                 ax.axhline(best, color="#9467bd", linestyle=":", linewidth=1, label="best so far")
             ax.set_xlabel("experiment")
-            ax.set_ylabel("MESHIFY_SECONDS (lower is better)")
-            ax.set_title("Autoresearch: po.meshify() from notebook.py")
+            ax.set_ylabel("MESHIFY_PER_CELL_SECONDS (lower is better)")
+            ax.set_title("Autoresearch: meshify wall time per cell")
             ax.legend(loc="upper right")
             ax.grid(True, alpha=0.3)
             fig.tight_layout()

@@ -4,7 +4,6 @@ import math
 import os
 
 import numpy as np
-from joblib import Parallel, delayed
 from numba import njit
 import trimesh
 
@@ -904,9 +903,7 @@ def build_all_cells_mesh(
             out.append((i, pos, idx, nrm, bbox))
         return out
 
-    batch_results = Parallel(n_jobs=-1, prefer="threads")(
-        delayed(_build_batch)(b) for b in batches
-    )
+    batch_results = [_build_batch(b) for b in batches]
 
     cell_results = {}
     for batch_out in batch_results:
