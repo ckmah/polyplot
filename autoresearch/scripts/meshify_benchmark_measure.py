@@ -2,11 +2,11 @@
 """Run ``notebook.py`` once and print meshify wall time **per cell** (seconds).
 
 Reads the last line matching ``^MESHIFY_PER_CELL_SECONDS=(.+)$`` from combined
-stdout/stderr. Also writes the full capture to ``run.log`` at the repo root.
+stdout/stderr. Also writes the full capture to ``autoresearch/logs/run.log``.
 
 Usage (autoresearch metric; lower is better)::
 
-    METRIC=$(uv run python scripts/meshify_benchmark_measure.py)
+    uv run python autoresearch/scripts/meshify_benchmark_measure.py
 """
 
 from __future__ import annotations
@@ -20,15 +20,19 @@ _PER_CELL = re.compile(r"^MESHIFY_PER_CELL_SECONDS=(.+)$")
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parent.parent
+    script_dir = Path(__file__).resolve().parent
+    autoresearch_dir = script_dir.parent
+    repo_root = autoresearch_dir.parent
+    log_dir = autoresearch_dir / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        ["uv", "run", "python", str(root / "notebook.py")],
-        cwd=root,
+        ["uv", "run", "python", str(repo_root / "notebook.py")],
+        cwd=repo_root,
         capture_output=True,
         text=True,
     )
     blob = proc.stdout + proc.stderr
-    (root / "run.log").write_text(blob, encoding="utf-8")
+    (log_dir / "run.log").write_text(blob, encoding="utf-8")
     metric = None
     for line in blob.splitlines():
         m = _PER_CELL.match(line.strip())

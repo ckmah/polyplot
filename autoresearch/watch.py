@@ -6,7 +6,7 @@
 # ]
 # ///
 
-"""Live plot of autoresearch `results.tsv` (repo root). Run: `uv run marimo edit autoresearch_watch.py`."""
+"""Live plot of ``autoresearch/results.tsv``. Run: ``uv run marimo edit autoresearch/watch.py``."""
 
 import marimo
 

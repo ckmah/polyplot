@@ -1,4 +1,4 @@
-"""Internal scalar defaults for mesh export; rewritten by autoresearch scripts.
+"""Internal scalar defaults for mesh export; rewritten by ``autoresearch/scripts`` drivers.
 
 Public API is unchanged: these replace former literal defaults in :mod:`polyplot`.
 """
