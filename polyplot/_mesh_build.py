@@ -529,7 +529,7 @@ def _adaptive_ring_targets_for_cells(
     scores: dict = {}
     for cid in cell_ids:
         rings, _ = _collect_rings_for_cell(cell_gdfs[cid], z_scale)
-        scores[cid] = _cell_max_turning(rings) if rings else 0.0
+        scores[cid] = float(max(len(r) for r in rings)) if rings else 0.0
     vals = np.asarray(list(scores.values()), dtype=np.float64)
     ref = float(np.median(vals)) if vals.size else 0.0
     if ref < 1e-12:
