@@ -490,6 +490,16 @@ def _orient2d_ccw(p: np.ndarray, q: np.ndarray, r: np.ndarray) -> float:
     return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
 
 
+def _tri_vertex_not_ab(row: np.ndarray, a: int, b: int) -> int:
+    """Third vertex index in triangle row ``(3,)`` that is neither ``a`` nor ``b``."""
+    u, v, w = int(row[0]), int(row[1]), int(row[2])
+    if u != a and u != b:
+        return u
+    if v != a and v != b:
+        return v
+    return w
+
+
 def _in_circumcircle(a: np.ndarray, b: np.ndarray, c: np.ndarray,
                      d: np.ndarray) -> bool:
     """Strict Delaunay in-circle test for a CCW-oriented triangle (a, b, c).
@@ -555,10 +565,10 @@ def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
             if len(adj) != 2:
                 continue
             t0i, t1i = adj
-            t0 = tris[t0i].tolist()
-            t1 = tris[t1i].tolist()
-            c = next(x for x in t0 if x != a and x != b)
-            d = next(x for x in t1 if x != a and x != b)
+            t0 = tris[t0i]
+            t1 = tris[t1i]
+            c = _tri_vertex_not_ab(t0, a, b)
+            d = _tri_vertex_not_ab(t1, a, b)
 
             # Skip if the quadrilateral (a, c, b, d) is non-convex — flipping
             # would produce a triangle outside the current coverage.
