@@ -1110,14 +1110,12 @@ def build_all_cells_mesh(
     import os as _os
     _nw = min((_os.cpu_count() or 1), len(cell_ids), 8)
     with ThreadPoolExecutor(max_workers=_nw) as _pool:
-        for i, (cid, result) in enumerate(
-            zip(cell_ids, _pool.map(_mesh_one, cell_ids))
-        ):
+        for i, (cid, mesh) in enumerate(_pool.map(_mesh_one, cell_ids)):
             if _on_progress is not None:
                 _on_progress(i, n, cid)
-            _, (pos, idx, nrm, bbox) = cid, result
-        if len(pos) > 0:
-            cell_results[i] = (pos, idx, nrm, bbox)
+            pos, idx, nrm, bbox = mesh
+            if len(pos) > 0:
+                cell_results[i] = (pos, idx, nrm, bbox)
 
     if not cell_results:
         return [], [], [], [], [0, 0, 0, 0, 0, 0]
