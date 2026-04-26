@@ -105,19 +105,17 @@ def _largest_polygon(geom):
 
 
 def _ring_vertices(polygon) -> np.ndarray:
-    from shapely.geometry.polygon import orient
-    ring = orient(polygon, sign=1.0).exterior
-    coords = np.asarray(ring.coords, dtype=np.float64)
+    coords = np.asarray(polygon.exterior.coords, dtype=np.float64)
     if len(coords) < 4:
         return np.zeros((0, 2), dtype=np.float64)
-
     pts = coords[:-1, :2]
     if len(pts) < 3:
         return np.zeros((0, 2), dtype=np.float64)
-
-    cx, cy = pts.mean(axis=0)
-    ang = np.arctan2(pts[:, 1] - cy, pts[:, 0] - cx)
-    return np.roll(pts, -int(np.argmin(np.abs(ang))), axis=0)
+    # Shoelace winding check: ensure CCW (positive area).
+    pts_next = np.roll(pts, -1, axis=0)
+    if (pts[:, 0] * pts_next[:, 1] - pts_next[:, 0] * pts[:, 1]).sum() < 0:
+        pts = pts[::-1]
+    return pts
 
 
 def _curvature_resample(
