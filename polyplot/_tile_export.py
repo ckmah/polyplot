@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
+from shapely.geometry import Polygon as _SGPolygon, MultiPolygon as _SGMultiPolygon
 import shapely as _shapely
 
 from polyplot._mesh_build import (
@@ -353,11 +354,28 @@ def export_tiles(
     tile_dir = out_dir / "tiles"
     tile_dir.mkdir(parents=True, exist_ok=True)
 
-    if tile_size_xy is None:
-        tile_size_xy = auto_tile_size(gdf_render, cfg, target_tile_mb)
+    # Compute cell centroids once; shared by tile sizing and tile assignment.
+    _cx = gdf_render.geometry.centroid.x.values
+    _cy = gdf_render.geometry.centroid.y.values
+    _ctmp = gdf_render[["cell_id"]].copy()
+    _ctmp["cx"] = _cx; _ctmp["cy"] = _cy
+    _cell_ctr = _ctmp.groupby("cell_id")[["cx", "cy"]].mean()
 
     all_cell_ids = sorted(gdf_render["cell_id"].unique().tolist())
     cell_colors = {cid: cell_color(i) for i, cid in enumerate(all_cell_ids)}
+
+    if tile_size_xy is None:
+        _nc2 = len(all_cell_ids)
+        if _nc2 < 2:
+            tile_size_xy = 200.0
+        else:
+            _avg_sl = len(gdf_render) / _nc2
+            _bpc = 48.0 * _avg_sl * 40.0
+            _tgt = max(1, int(target_tile_mb * 1024 * 1024 / _bpc))
+            _xr = float(_cell_ctr["cx"].max() - _cell_ctr["cx"].min())
+            _yr = float(_cell_ctr["cy"].max() - _cell_ctr["cy"].min())
+            _area = _xr * _yr
+            tile_size_xy = 200.0 if _area < 1.0 else float(np.sqrt(_tgt / (_nc2 / _area)))
 
     # Bulk-extract arrays once: avoids 1000 slow pandas __getitem__ calls + groupby.
     z_scale = cfg.get("z_scale", 2.0)
@@ -376,10 +394,14 @@ def export_tiles(
         _polys: list = []
         _zi: list = []
         for _geom, _zi_v in zip(_gmap[cid], _zmap[cid], strict=True):
-            _p = _largest_polygon(_geom)
-            if _p is not None:
-                _polys.append(_p)
+            if isinstance(_geom, _SGPolygon):
+                _polys.append(_geom)
                 _zi.append(_zi_v)
+            elif isinstance(_geom, _SGMultiPolygon):
+                _subs = [g for g in _geom.geoms if not g.is_empty]
+                if _subs:
+                    _polys.append(max(_subs, key=lambda p: p.area))
+                    _zi.append(_zi_v)
         if not _polys:
             rings_by_cid[cid] = []
             zs_by_cid[cid] = []
@@ -410,7 +432,11 @@ def export_tiles(
         zs_by_cid[cid] = _zs
         scores_by_cid[cid] = _cell_max_turning(_rings)
 
-    assignments = compute_tile_grid(gdf_render, tile_size_xy)
+    _min_x = float(_cell_ctr["cx"].min())
+    _min_y = float(_cell_ctr["cy"].min())
+    _t_cols = ((_cell_ctr["cx"].values - _min_x) / tile_size_xy).astype(int)
+    _t_rows = ((_cell_ctr["cy"].values - _min_y) / tile_size_xy).astype(int)
+    assignments = {cid: (int(c), int(r)) for cid, c, r in zip(_cell_ctr.index, _t_cols, _t_rows)}
 
     tile_cells: dict = defaultdict(list)
     for cell_id, key in assignments.items():
