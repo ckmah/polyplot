@@ -181,20 +181,19 @@ def _curvature_resample(
     if n == n_target and not redistribute_equal:
         return ring
 
-    nxt = np.roll(ring, -1, axis=0)
-    prv = np.roll(ring, 1, axis=0)
+    nxt = np.empty_like(ring); nxt[:-1] = ring[1:]; nxt[-1] = ring[0]
+    prv = np.empty_like(ring); prv[1:] = ring[:-1]; prv[0] = ring[-1]
     v_prev = ring - prv
     v_next = nxt - ring
     lp = np.hypot(v_prev[:, 0], v_prev[:, 1]) + 1e-12
     ln = np.hypot(v_next[:, 0], v_next[:, 1]) + 1e-12
     dot = np.clip((v_prev * v_next).sum(axis=1) / (lp * ln), -1.0, 1.0)
-    turning = np.arccos(dot)  # 0 = straight, pi = spike
+    turning = np.arccos(dot)
 
-    # Edge weight: average of turning at its two endpoints, times a density factor,
-    # times edge length. Higher curvature => tighter sampling.
     endpoint_density = turning + base * np.pi
-    edge_density = 0.5 * (endpoint_density + np.roll(endpoint_density, -1, axis=0))
-    edge_w = ln * edge_density
+    ep_next = np.empty_like(endpoint_density)
+    ep_next[:-1] = endpoint_density[1:]; ep_next[-1] = endpoint_density[0]
+    edge_w = ln * 0.5 * (endpoint_density + ep_next)
     cum = np.concatenate([[0.0], np.cumsum(edge_w)])
     total = cum[-1]
     if total < 1e-12:
