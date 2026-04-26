@@ -808,15 +808,20 @@ def build_loft_mesh_from_rings(
         common_n = int(max(len(r) for r in rings_2d))
     common_n = max(common_n, 4)
 
-    rings_2d = _unify_ring_count(
-        rings_2d, common_n, curvature_base=ring_curvature_base,
-    )
+    # Unify directly into pre-allocated stack; avoids list-of-arrays + separate np.stack.
+    if rings_2d and all(len(r) == common_n for r in rings_2d):
+        stack = np.asarray(rings_2d, dtype=np.float64)
+    else:
+        stack = np.empty((n_slices, common_n, 2), dtype=np.float64)
+        for _s, _r in enumerate(rings_2d):
+            stack[_s] = _curvature_resample(_r, common_n, base=ring_curvature_base,
+                                            redistribute_equal=True)
 
-    # Align rotation of each ring to its predecessor (min displacement; robust vs FFT).
+    # Align each ring to its predecessor.
     for s in range(1, n_slices):
-        rings_2d[s] = _align_ring_min_sqdist(rings_2d[s - 1], rings_2d[s])
- 
-    stack = np.stack(rings_2d, axis=0)  # (S, N, 2)
+        k = int(_best_shift_nb(stack[s - 1], stack[s]))
+        if k:
+            stack[s] = stack[s][(np.arange(common_n, dtype=np.int64) + k) % common_n]
     z_arr = np.asarray(zs, dtype=np.float64)
 
     s_total, n_ring = stack.shape[0], stack.shape[1]
