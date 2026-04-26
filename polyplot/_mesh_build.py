@@ -165,6 +165,24 @@ def _post_smooth_nb(side_xy: np.ndarray, side_ref: np.ndarray) -> None:
 
 
 @njit(cache=True, fastmath=True, nogil=True)
+def _taubin_step_nb(verts: np.ndarray, side_faces: np.ndarray, safe_cnt: np.ndarray, lam: float) -> None:
+    """One Taubin Laplacian step, in-place. Replaces np.bincount per-column scatter."""
+    nv = verts.shape[0]
+    sums = np.zeros((nv, 3), dtype=np.float64)
+    for fi in range(side_faces.shape[0]):
+        a = side_faces[fi, 0]; b = side_faces[fi, 1]; c = side_faces[fi, 2]
+        for col in range(3):
+            sums[a, col] += verts[b, col] + verts[c, col]
+            sums[b, col] += verts[a, col] + verts[c, col]
+            sums[c, col] += verts[a, col] + verts[b, col]
+    for vi in range(nv):
+        sc = safe_cnt[vi]
+        for col in range(3):
+            lap = sums[vi, col] / sc - verts[vi, col]
+            verts[vi, col] += lam * lap
+
+
+@njit(cache=True, fastmath=True, nogil=True)
 def _refine_shift_nb(prev: np.ndarray, curr: np.ndarray, k0: int, win: int) -> int:
     """Local window search around k0; best cyclic shift in [k0-win, k0+win]."""
     n = prev.shape[0]
@@ -960,19 +978,9 @@ def build_loft_mesh_from_rings(
         safe_cnt = np.maximum(
             np.bincount(side_faces.ravel(), minlength=n_v).astype(np.float64) * 2, 1.0
         )
-        nb_a = np.concatenate([side_faces[:, 1], side_faces[:, 2],
-                                side_faces[:, 0], side_faces[:, 2],
-                                side_faces[:, 0], side_faces[:, 1]])
-        nb_v = np.concatenate([side_faces[:, 0], side_faces[:, 0],
-                                side_faces[:, 1], side_faces[:, 1],
-                                side_faces[:, 2], side_faces[:, 2]])
-        _sums = np.empty((n_v, 3), dtype=np.float64)
         for _it in range(int(smooth_iters)):
-            for _lam in (lam, mu):
-                for col in range(3):
-                    _sums[:, col] = np.bincount(nb_v, weights=verts[nb_a, col], minlength=n_v)
-                laplacian = _sums / safe_cnt[:, None] - verts
-                verts += _lam * laplacian
+            _taubin_step_nb(verts, side_faces, safe_cnt, lam)
+            _taubin_step_nb(verts, side_faces, safe_cnt, mu)
         positions = verts.astype(np.float32, copy=False)
 
         # Single post-smooth pass:
