@@ -16,7 +16,7 @@ ADAPTIVE_EXPONENT: float = 0.65
 # Alignment (_align_ring_min_sqdist)
 ALIGN_EXHAUSTIVE_MAX_N: int = 112
 ALIGN_FFT_ONLY_MIN_N: int = 448
-ALIGN_REFINE_WINDOW: int = 12
+ALIGN_REFINE_WINDOW: int = 16
 
 # Cap Lawson flips: max_passes = CDT_PASS_MULTIPLIER * n
 CDT_PASS_MULTIPLIER: int = 3
