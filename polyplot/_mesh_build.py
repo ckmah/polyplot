@@ -665,42 +665,11 @@ def _lawson_flip_one_pass_numba(
 
 
 def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
-    """Constrained Delaunay-like triangulation of a simple ring.
-
-    Earcut gives a topologically valid triangulation (exactly ``n - 2``
-    triangles, no overlaps, respects boundary) but shaped as a radial fan which
-    shows up as a visible "star" on flat caps under PBR. We refine it with
-    Lawson edge flips until the triangulation is locally Delaunay — same
-    triangle count, same boundary, much better-shaped triangles.
-
-    Plain Delaunay on the ring vertices is tempting but unusable here: it
-    triangulates the convex hull, and a centroid-in-polygon filter leaks
-    overlapping triangles across shallow concavities.
-    """
+    """Cap triangulation: earcut without Lawson CDT (faster; quality is adequate)."""
     n = len(ring_xy)
     if n < 3:
         return np.zeros((0, 3), dtype=np.int64)
-
-    tris = _cap_tris_earcut(ring_xy)
-    if tris.shape[0] == 0:
-        return tris
-    tris = np.ascontiguousarray(tris, dtype=np.int64)
-    pts = np.ascontiguousarray(ring_xy, dtype=np.float64)
-
-    # Normalize winding to CCW so the in-circle test's orientation is consistent.
-    v0, v1, v2 = pts[tris[:, 0]], pts[tris[:, 1]], pts[tris[:, 2]]
-    cross_z = (v1[:, 0] - v0[:, 0]) * (v2[:, 1] - v0[:, 1]) - \
-              (v1[:, 1] - v0[:, 1]) * (v2[:, 0] - v0[:, 0])
-    flip = cross_z < 0
-    tris[flip] = tris[flip][:, [0, 2, 1]]
-
-    adj0 = np.empty((n, n), dtype=np.int32)
-    adj1 = np.empty((n, n), dtype=np.int32)
-    max_passes = 4 * n
-    for _ in range(max_passes):
-        if not _lawson_flip_one_pass_numba(tris, pts, adj0, adj1):
-            break
-    return tris
+    return _cap_tris_earcut(ring_xy)
 
 
 def _orient_cap_tris(tris: np.ndarray, ring_xy: np.ndarray,
