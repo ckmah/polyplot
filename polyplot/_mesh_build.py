@@ -909,9 +909,9 @@ def build_loft_mesh_from_rings(
         lam, mu = _taubin_lam_mu(smooth_factor)
         verts = positions.astype(np.float64, copy=True)
         n_v = verts.shape[0]
-        # Pre-compute degree (constant per mesh topology).
-        all_vi = np.concatenate([side_faces[:, 0], side_faces[:, 1], side_faces[:, 2]])
-        safe_cnt = np.maximum(np.bincount(all_vi, minlength=n_v).astype(np.float64) * 2, 1.0)
+        safe_cnt = np.maximum(
+            np.bincount(side_faces.ravel(), minlength=n_v).astype(np.float64) * 2, 1.0
+        )
         nb_a = np.concatenate([side_faces[:, 1], side_faces[:, 2],
                                 side_faces[:, 0], side_faces[:, 2],
                                 side_faces[:, 0], side_faces[:, 1]])
