@@ -11,6 +11,10 @@ import shapely as _shapely
 def _arc_resample_nb(ring: np.ndarray, n_points: int) -> np.ndarray:
     """Uniform arc-length resample of closed ring. O(n+n_points), zero alloc beyond output."""
     n = ring.shape[0]
+    if n > 1:
+        dx = ring[n - 1, 0] - ring[0, 0]; dy = ring[n - 1, 1] - ring[0, 1]
+        if dx * dx + dy * dy < 1e-20:
+            n -= 1
     out = np.empty((n_points, 2), dtype=np.float64)
     cum = np.empty(n + 1, dtype=np.float64)
     cum[0] = 0.0
