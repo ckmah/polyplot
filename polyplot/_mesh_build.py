@@ -831,10 +831,27 @@ def build_loft_mesh_from_rings(
         # from them in XY), which can collapse or self-intersect the cap ring.
         # The end rings still get Laplacian averaging from strip neighbors.
         side_faces = np.concatenate(strips).reshape(-1, 3).astype(np.int64, copy=False)
-        mesh = trimesh.Trimesh(vertices=positions.astype(np.float64, copy=False), faces=side_faces, process=False)
         lam, mu = _taubin_lam_mu(smooth_factor)
-        trimesh.smoothing.filter_taubin(mesh, lamb=lam, nu=mu, iterations=int(smooth_iters))
-        positions = mesh.vertices.astype(np.float32, copy=False)
+        verts = positions.astype(np.float64, copy=True)
+        n_v = verts.shape[0]
+        for _it in range(int(smooth_iters)):
+            for _lam in (lam, mu):
+                sums = np.zeros_like(verts)
+                cnts = np.zeros(n_v, dtype=np.float64)
+                for col in range(3):
+                    np.add.at(sums[:, col], side_faces[:, 0], verts[side_faces[:, 1], col])
+                    np.add.at(sums[:, col], side_faces[:, 0], verts[side_faces[:, 2], col])
+                    np.add.at(sums[:, col], side_faces[:, 1], verts[side_faces[:, 0], col])
+                    np.add.at(sums[:, col], side_faces[:, 1], verts[side_faces[:, 2], col])
+                    np.add.at(sums[:, col], side_faces[:, 2], verts[side_faces[:, 0], col])
+                    np.add.at(sums[:, col], side_faces[:, 2], verts[side_faces[:, 1], col])
+                np.add.at(cnts, side_faces[:, 0], 2.0)
+                np.add.at(cnts, side_faces[:, 1], 2.0)
+                np.add.at(cnts, side_faces[:, 2], 2.0)
+                safe_cnt = np.where(cnts > 0, cnts, 1.0)
+                laplacian = sums / safe_cnt[:, None] - verts
+                verts += _lam * laplacian
+        positions = verts.astype(np.float32, copy=False)
 
         # Single post-smooth pass:
         # - re-lock Z to input stack heights
