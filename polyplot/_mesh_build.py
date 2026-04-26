@@ -842,19 +842,15 @@ def build_loft_mesh_from_rings(
         # - sequentially roll slice s to match s-1 for strip correspondence
         side_xy = positions[:n_side_verts, :2].reshape(s_total, n_ring, 2).astype(np.float64, copy=False)
         eps = 1e-12
-        for s in range(s_total):
-            ref = side_ref[s]
-            cur = side_xy[s]
-            c_ref = ref.mean(axis=0)
-            c_cur = cur.mean(axis=0)
-            ref0 = ref - c_ref
-            cur0 = cur - c_cur
-            r_ref = np.sqrt((ref0 * ref0).sum(axis=1)).mean()
-            r_cur = np.sqrt((cur0 * cur0).sum(axis=1)).mean()
-            scale = (r_ref / r_cur) if (r_ref > eps and r_cur > eps) else 1.0
-            side_xy[s] = c_ref + scale * cur0
-            lo = s * n_ring
-            positions[lo : lo + n_ring, 2] = float(z_arr[s])
+        c_ref = side_ref.mean(axis=1, keepdims=True)         # (S, 1, 2)
+        c_cur = side_xy.mean(axis=1, keepdims=True)          # (S, 1, 2)
+        ref0 = side_ref - c_ref                              # (S, N, 2)
+        cur0 = side_xy - c_cur                               # (S, N, 2)
+        r_ref = np.sqrt((ref0 * ref0).sum(axis=2)).mean(axis=1)  # (S,)
+        r_cur = np.sqrt((cur0 * cur0).sum(axis=2)).mean(axis=1)  # (S,)
+        scale = np.where((r_ref > eps) & (r_cur > eps), r_ref / r_cur, 1.0)[:, None, None]
+        side_xy[:] = c_ref + scale * cur0
+        positions[:n_side_verts, 2] = np.repeat(z_arr.astype(np.float32), n_ring)
 
         for s in range(1, s_total):
             side_xy[s] = _align_ring_min_sqdist(
