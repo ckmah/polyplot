@@ -218,7 +218,7 @@ def _build_tile_data(
     z_scale = cfg.get("z_scale", 2.0)
     smooth_iters = cfg.get("smooth_iters", 1)
     smooth_factor = cfg.get("smooth_factor", 0.5)
-    ring_target = cfg.get("ring_target", 40)
+    ring_target = cfg.get("ring_target", 36)
     ring_cb = float(cfg.get("ring_curvature_base", 0.28))
     n_by_cid = _adaptive_ring_targets_from_scores(
         cell_ids,
