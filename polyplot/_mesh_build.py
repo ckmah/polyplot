@@ -6,6 +6,20 @@ import trimesh
 
 
 @njit(cache=True, fastmath=True, nogil=True)
+def _accumulate_normals_nb(
+    normals: np.ndarray, faces: np.ndarray,
+    fn0: np.ndarray, fn1: np.ndarray, fn2: np.ndarray,
+) -> None:
+    """Scatter face normals to vertex normals (area-weighted)."""
+    nf = faces.shape[0]
+    for fi in range(nf):
+        a = faces[fi, 0]; b = faces[fi, 1]; c = faces[fi, 2]
+        normals[a, 0] += fn0[fi]; normals[a, 1] += fn1[fi]; normals[a, 2] += fn2[fi]
+        normals[b, 0] += fn0[fi]; normals[b, 1] += fn1[fi]; normals[b, 2] += fn2[fi]
+        normals[c, 0] += fn0[fi]; normals[c, 1] += fn1[fi]; normals[c, 2] += fn2[fi]
+
+
+@njit(cache=True, fastmath=True, nogil=True)
 def _curvature_weights_nb(ring: np.ndarray, base: float) -> np.ndarray:
     """Compute curvature-weighted edge lengths for ring resampling."""
     n = ring.shape[0]
@@ -704,12 +718,14 @@ def _compute_vertex_normals(positions: np.ndarray,
     v0 = pos64[faces[:, 0]]
     v1 = pos64[faces[:, 1]]
     v2 = pos64[faces[:, 2]]
-    fn = np.cross(v1 - v0, v2 - v0)
+    a = v1 - v0; b = v2 - v0
+    fn0_ = a[:, 1]*b[:, 2] - a[:, 2]*b[:, 1]
+    fn1_ = a[:, 2]*b[:, 0] - a[:, 0]*b[:, 2]
+    fn2_ = a[:, 0]*b[:, 1] - a[:, 1]*b[:, 0]
     normals = np.zeros((n_verts, 3), dtype=np.float64)
-    all_idx = np.concatenate([faces[:, 0], faces[:, 1], faces[:, 2]])
-    fn3 = np.tile(fn, (3, 1))  # fn repeated 3x for 3 vertex contributions
-    for d in range(3):
-        normals[:, d] = np.bincount(all_idx, weights=fn3[:, d], minlength=n_verts)
+    _accumulate_normals_nb(normals, faces.astype(np.int64),
+                           fn0_.astype(np.float64), fn1_.astype(np.float64),
+                           fn2_.astype(np.float64))
     sqlen = (normals * normals).sum(axis=1, keepdims=True)
     lens = np.sqrt(sqlen)
     lens = np.where(lens > 1e-12, lens, 1.0)
