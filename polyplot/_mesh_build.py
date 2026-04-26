@@ -6,6 +6,26 @@ import trimesh
 
 
 @njit(cache=True, fastmath=True, nogil=True)
+def _refine_shift_nb(prev: np.ndarray, curr: np.ndarray, k0: int, win: int) -> int:
+    """Local window search around k0; best cyclic shift in [k0-win, k0+win]."""
+    n = prev.shape[0]
+    best_cost = 1e200
+    best_k = k0
+    for dk in range(-win, win + 1):
+        k = (k0 + dk) % n
+        cost = 0.0
+        for i in range(n):
+            src = (i + k) % n
+            dx = curr[src, 0] - prev[i, 0]
+            dy = curr[src, 1] - prev[i, 1]
+            cost += dx * dx + dy * dy
+        if cost < best_cost:
+            best_cost = cost
+            best_k = k
+    return best_k
+
+
+@njit(cache=True, fastmath=True, nogil=True)
 def _best_shift_nb(prev: np.ndarray, curr: np.ndarray) -> int:
     """Best cyclic shift k minimising sum-sq displacement; no heap allocs."""
     n = prev.shape[0]
@@ -187,15 +207,9 @@ def _align_ring_min_sqdist(prev: np.ndarray, curr: np.ndarray) -> np.ndarray:
         return np.ascontiguousarray(curr[idx])
 
     k0 = int(_best_roll_fft(prev, curr))
-    win = 16
-    cand = np.arange(-win, win + 1, dtype=np.int64)
-    ks = (k0 + cand) % n
-    i = np.arange(n, dtype=np.int64)
-    idx = (i[None, :] - ks[:, None]) % n
-    rolled = curr[idx]
-    costs = np.sum((rolled - prev) ** 2, axis=(1, 2))
-    best_k = int(ks[int(np.argmin(costs))])
-    return np.ascontiguousarray(curr[(np.arange(n, dtype=np.int64) - best_k) % n])
+    best_k = int(_refine_shift_nb(prev, curr, k0, 16))
+    idx = (np.arange(n, dtype=np.int64) + best_k) % n
+    return np.ascontiguousarray(curr[idx])
 
 
 # ---------------------------------------------------------------------------
