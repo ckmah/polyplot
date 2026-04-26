@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 from numba import njit
 import trimesh
 
@@ -1012,19 +1013,24 @@ def build_all_cells_mesh(
         exponent=ring_adaptive_exponent,
     )
 
-    cell_results = {}
-    for i, cid in enumerate(cell_ids):
-        if _on_progress is not None:
-            _on_progress(i, n, cid)
+    def _mesh_one(cid):
         rt = ring_vertex_target if n_by_cid is None else n_by_cid[cid]
-        pos, idx, nrm, bbox = build_loft_mesh_from_rings(
-            rings_by_cid[cid],
-            zs_by_cid[cid],
-            smooth_iters=smooth_iters,
-            smooth_factor=smooth_factor,
-            ring_vertex_target=rt,
-            ring_curvature_base=ring_curvature_base,
+        return cid, build_loft_mesh_from_rings(
+            rings_by_cid[cid], zs_by_cid[cid],
+            smooth_iters=smooth_iters, smooth_factor=smooth_factor,
+            ring_vertex_target=rt, ring_curvature_base=ring_curvature_base,
         )
+
+    cell_results = {}
+    import os as _os
+    _nw = min((_os.cpu_count() or 1), len(cell_ids), 8)
+    with ThreadPoolExecutor(max_workers=_nw) as _pool:
+        for i, (cid, result) in enumerate(
+            zip(cell_ids, _pool.map(_mesh_one, cell_ids))
+        ):
+            if _on_progress is not None:
+                _on_progress(i, n, cid)
+            _, (pos, idx, nrm, bbox) = cid, result
         if len(pos) > 0:
             cell_results[i] = (pos, idx, nrm, bbox)
 
