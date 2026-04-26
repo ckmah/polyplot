@@ -7,7 +7,6 @@ import {
   Environment,
   GizmoHelper,
   GizmoViewport,
-  Grid,
   OrbitControls,
   useBounds,
 } from "https://esm.sh/@react-three/drei@9.105.0?deps=react@18.3.1,react-dom@18.3.1,three@0.160.1,@react-three/fiber@8.17.10";
@@ -24,7 +23,11 @@ const INITIAL_VIEW_DIR = new THREE.Vector3(0.52, 0.46, 0.72).normalize();
 
 // Orbit zoom vs framing distance (initial camera sits ~fitDistance from target).
 const ZOOM_MIN_FACTOR = 0.045;
-const ZOOM_MAX_FACTOR = 0.3;
+const ZOOM_MAX_FACTOR = 0.5;
+// Limit grazing angles (Z-up) so the tight frustum and streaming stay stable.
+const ORBIT_MIN_POLAR = 0.2;
+const ORBIT_MAX_POLAR = 1.4;
+const PRESET_DUR_MS = 420;
 // Stream tiles by distance to camera (radii derived from camera.far + tile grid size).
 const TILE_LOAD_FAR_MUL = 1.06;
 const TILE_UNLOAD_MUL = 1.38;
@@ -95,6 +98,41 @@ function useTrait(model, key) {
   return val;
 }
 
+function decodeB64ToBytes(b64) {
+  if (!b64 || typeof b64 !== "string") return null;
+  const s = b64.trim();
+  if (!s) return null;
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function zBandClipActive(z0, z1, bz0, bz1) {
+  const span = Math.max(bz1 - bz0, 1e-9);
+  const eps = Math.max(1e-6, span * 1e-4);
+  return z0 > bz0 + eps || z1 < bz1 - eps;
+}
+
+function buildZClipPlanes(z0, z1) {
+  return [
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), -z0),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), z1),
+  ];
+}
+
+function applyClipToMaterial(m, planes) {
+  if (!m) return;
+  if (!planes || planes.length === 0) {
+    m.clipping = false;
+    m.clippingPlanes = null;
+  } else {
+    m.clipping = true;
+    m.clippingPlanes = planes;
+  }
+  m.needsUpdate = true;
+}
+
 function framingFromBBox(bbox) {
   if (!bbox || bbox.length !== 6) {
     return { center: [0, 0, 0], distance: 5 };
@@ -126,28 +164,55 @@ function fitCameraDistanceFromBBox(bbox, fovDeg, aspect, margin = 1.32) {
   return margin * Math.max(distV, distH);
 }
 
-function ReferenceGrid({ bbox }) {
+function ReferenceGrid({ bbox, clipPlanes }) {
+  const gridRef = useRef(null);
   const { center, distance: diag } = framingFromBBox(bbox);
   const minZ = bbox[2];
-  const floorZ = minZ - Math.max(0.02, diag * 0.03);
-  const zGrid = floorZ + Math.max(0.0005, diag * 5e-5);
-  const span = Math.max(diag * 14, 12);
-  const cell = Math.max(0.04, diag / 64);
-  const section = Math.max(0.25, diag / 16);
-  return h(Grid, {
+  const zPad = Math.max(0.0005, diag * 5e-5);
+  const zGrid = minZ - zPad;
+
+  // Plain Three.js GridHelper (stable, cheap). Sits *below* the bbox floor in Z
+  // so it is occluded by geometry above; see BoundsRefit.applyRenderFar for the
+  // extra far margin so this plane is not frustum-clipped.
+  const span = Math.max(diag * 28, 48);
+  const divisions = Math.min(768, Math.max(24, Math.round(span / Math.max(0.04, diag / 64))));
+  const helper = useMemo(() => {
+    const h0 = new THREE.GridHelper(
+      span,
+      divisions,
+      new THREE.Color("#cfe1ff"),
+      new THREE.Color("#9aa6b8"),
+    );
+    const mats = Array.isArray(h0.material) ? h0.material : [h0.material];
+    for (const m of mats) {
+      if (!m) continue;
+      m.depthTest = true;
+      m.depthWrite = false;
+      m.transparent = true;
+      m.opacity = 0.82;
+      m.polygonOffset = true;
+      m.polygonOffsetFactor = 1;
+      m.polygonOffsetUnits = 1;
+    }
+    h0.renderOrder = 0;
+    h0.frustumCulled = false;
+    return h0;
+  }, [span, divisions]);
+
+  useLayoutEffect(() => {
+    const obj = gridRef.current;
+    if (!obj) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const m of mats) {
+      applyClipToMaterial(m, clipPlanes);
+    }
+  }, [clipPlanes]);
+
+  return h("primitive", {
+    ref: gridRef,
+    object: helper,
     position: [center[0], center[1], zGrid],
-    rotation: [Math.PI / 2, 0, 0],
-    args: [span, span],
-    infiniteGrid: false,
-    followCamera: false,
-    cellSize: cell,
-    sectionSize: section,
-    cellColor: "#5c6470",
-    sectionColor: "#5b8fd9",
-    fadeDistance: Math.max(48, diag * 4.5),
-    fadeStrength: 2.05,
-    cellThickness: 1.1,
-    sectionThickness: 1.1,
+    rotation: [Math.PI / 2, 0, 0], // rotate XZ (y-up) grid into XY for Z-up scenes
   });
 }
 
@@ -167,7 +232,7 @@ function ZUpOrbitControls() {
   });
 }
 
-function BoundsRefit({ frameTick, bboxKey, bbox }) {
+function BoundsRefit({ frameTick, bboxKey, bbox, viewCommand }) {
   const api = useBounds();
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -176,6 +241,7 @@ function BoundsRefit({ frameTick, bboxKey, bbox }) {
   const fitDistanceRef = useRef(1);
   const sceneExtentRef = useRef(1);
   const resetAnimRef = useRef(null);
+  const lastViewIdRef = useRef(-1);
   const bbox6Ref = useRef({
     minX: 0,
     minY: 0,
@@ -204,7 +270,14 @@ function BoundsRefit({ frameTick, bboxKey, bbox }) {
       maxY,
       maxZ,
     );
-    const depth = Math.max(maxD, extent * 0.02, camera.near * 10);
+    const dx = maxX - minX;
+    const dy = maxY - minY;
+    const dz = maxZ - minZ;
+    const diag = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    const floorPad = Math.max(diag * 5e-5, 0.0005);
+    // ReferenceGrid / shadow sit slightly below bbox.minZ; extend far enough
+    // that the tightened frustum still includes that plane in top-down views.
+    const depth = Math.max(maxD, extent * 0.02, camera.near * 10) + floorPad * 6;
     const farFull = depth * FAR_TOP_FRAC + camera.near * 2;
     const frac = THREE.MathUtils.lerp(FAR_EDGE_FRAC, 1, t);
     let far = farFull * frac;
@@ -240,6 +313,8 @@ function BoundsRefit({ frameTick, bboxKey, bbox }) {
       if (controls && controls.target) {
         controls.minDistance = Math.max(extent * 1e-5, distance * ZOOM_MIN_FACTOR);
         controls.maxDistance = distance * ZOOM_MAX_FACTOR;
+        controls.minPolarAngle = ORBIT_MIN_POLAR;
+        controls.maxPolarAngle = ORBIT_MAX_POLAR;
       }
       if (!canAnimate) {
         resetAnimRef.current = null;
@@ -268,6 +343,51 @@ function BoundsRefit({ frameTick, bboxKey, bbox }) {
       invalidate();
     });
   }, [api, frameTick, bboxKey, size.width, size.height, bbox, camera, controls, invalidate, applyRenderFar]);
+
+  useLayoutEffect(() => {
+    if (!viewCommand || !bbox || bbox.length !== 6) return;
+    if (!size.width || !size.height) return;
+    if (!controls || !controls.target) return;
+    if (viewCommand.id === lastViewIdRef.current) return;
+    const d = fitDistanceRef.current;
+    if (!(d > 0)) return;
+    const { center: c } = framingFromBBox(bbox);
+    const center = new THREE.Vector3(c[0], c[1], c[2]);
+    let toPos;
+    const pr = viewCommand.preset;
+    if (pr === "top") {
+      // Keep a stable azimuth so OrbitControls doesn't "spin" when the view is
+      // nearly perfectly top-down (XY azimuth becomes ill-defined at x=y=0).
+      // Align with the default/reset azimuth (INITIAL_VIEW_DIR projected to XY).
+      const vxy = new THREE.Vector3(INITIAL_VIEW_DIR.x, INITIAL_VIEW_DIR.y, 0);
+      if (vxy.lengthSq() < 1e-12) vxy.set(1, 0, 0);
+      vxy.normalize();
+      toPos = center.clone()
+        .addScaledVector(vxy, d * 0.02)
+        .add(new THREE.Vector3(0, 0, d));
+    } else if (pr === "side") {
+      // Side-ish view that keeps the same XY azimuth as reset/top (no spin).
+      // Only reduce elevation (Z) and increase lateral distance.
+      const vxy = new THREE.Vector3(INITIAL_VIEW_DIR.x, INITIAL_VIEW_DIR.y, 0);
+      if (vxy.lengthSq() < 1e-12) vxy.set(1, 0, 0);
+      vxy.normalize();
+      toPos = center.clone()
+        .addScaledVector(vxy, d * 1.05)
+        .add(new THREE.Vector3(0, 0, d * 0.18));
+    } else {
+      toPos = center.clone().addScaledVector(INITIAL_VIEW_DIR, d);
+    }
+    lastViewIdRef.current = viewCommand.id;
+    resetAnimRef.current = {
+      t0: performance.now(),
+      dur: PRESET_DUR_MS,
+      fromPos: camera.position.clone(),
+      fromTgt: controls.target.clone(),
+      toPos,
+      toTgt: center.clone(),
+    };
+    invalidate();
+  }, [viewCommand, bbox, bboxKey, size.width, size.height, camera, controls, invalidate]);
 
   useFrame(() => {
     const anim = resetAnimRef.current;
@@ -300,6 +420,10 @@ function BoundsRefit({ frameTick, bboxKey, bbox }) {
   }, [controls, applyRenderFar, invalidate]);
 
   useEffect(() => {
+    lastViewIdRef.current = -1;
+  }, [bboxKey]);
+
+  useEffect(() => {
     if (!controls || !controls.domElement) return;
     const el = controls.domElement;
     const cancel = () => {
@@ -312,14 +436,18 @@ function BoundsRefit({ frameTick, bboxKey, bbox }) {
   return null;
 }
 
-function ShadowFloor({ bbox }) {
+function ShadowFloor({ bbox, clipPlanes }) {
   if (!bbox || bbox.length !== 6) return null;
   const { center, distance: diag } = framingFromBBox(bbox);
   const minZ = bbox[2];
-  const floorZ = minZ - Math.max(0.02, diag * 0.03);
+  const zPad = Math.max(0.0005, diag * 5e-5);
+  const floorZ = minZ - 2 * zPad;
   const span = Math.max(diag * 4, 4);
   const geom = useMemo(() => new THREE.PlaneGeometry(span, span), [span]);
   const mat = useMemo(() => new THREE.ShadowMaterial({ opacity: 0.5, transparent: true }), []);
+  useLayoutEffect(() => {
+    applyClipToMaterial(mat, clipPlanes);
+  }, [mat, clipPlanes]);
   useEffect(() => () => { geom.dispose(); mat.dispose(); }, [geom, mat]);
   return h("mesh", {
     geometry: geom,
@@ -383,6 +511,7 @@ function _makeMaterial(wireframe, opacity) {
     vertexColors: true,
     wireframe: !!wireframe,
     side: THREE.FrontSide,
+    clipping: true,
     metalness: 0.05,
     roughness: 0.55,
     clearcoat: 0.12,
@@ -397,7 +526,7 @@ function _makeMaterial(wireframe, opacity) {
   });
 }
 
-function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetches }) {
+function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetches, clipPlanes, minimapRef }) {
   const { invalidate } = useThree();
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls);
@@ -412,10 +541,22 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
   const loadedRef    = useRef(new Map());     // key -> THREE.Group
   const pendingRef   = useRef(new Set());     // keys currently fetching
   const propsRef     = useRef({ wireframe, opacity });
+  const clipPlanesRef = useRef(clipPlanes);
+  clipPlanesRef.current = clipPlanes;
   const fetchGenRef  = useRef(0);             // bump when tile server / index changes
   const [version, setVersion] = useState(0);
 
   useEffect(() => { propsRef.current = { wireframe, opacity }; }, [wireframe, opacity]);
+
+  useEffect(() => {
+    loadedRef.current.forEach((group) => {
+      group.traverse((obj) => {
+        if (!obj.isMesh || !obj.material) return;
+        applyClipToMaterial(obj.material, clipPlanes);
+      });
+    });
+    invalidateRef.current();
+  }, [clipPlanes]);
 
   useEffect(() => {
     loadedRef.current.forEach((group, key) => {
@@ -544,6 +685,7 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
             obj.geometry.computeVertexNormals();
           }
           obj.material = _makeMaterial(wf, op);
+          applyClipToMaterial(obj.material, clipPlanesRef.current);
           obj.material.transparent = true;
           obj.material.opacity = 0;
           obj.material.depthWrite = false;
@@ -586,6 +728,10 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
       .then((data) => {
         if (!alive || gen !== fetchGenRef.current) return;
         tilesRef.current = data;
+        if (minimapRef) {
+          minimapRef.current = minimapRef.current || {};
+          minimapRef.current.tilesIndex = data;
+        }
         setVersion((v) => v + 1);
         invalidateRef.current();
         _pumpLoads();
@@ -610,6 +756,15 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
       _disposeAllLoaded();
     };
   }, [tileServerUrl, tilesJsonPath]);
+
+  // Expose loaded/pending sets for minimap rendering (no re-renders).
+  useEffect(() => {
+    if (!minimapRef) return;
+    minimapRef.current = minimapRef.current || {};
+    minimapRef.current.loadedKeys = loadedRef.current;
+    minimapRef.current.pendingKeys = pendingRef.current;
+    minimapRef.current.tilesIndex = tilesRef.current;
+  }, [minimapRef]);
 
   useEffect(() => {
     if (!controls) return;
@@ -671,6 +826,205 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
   );
 }
 
+function CameraStream({ posRef, tgtRef }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls);
+  useFrame(() => {
+    if (!posRef || !tgtRef) return;
+    posRef.current.copy(camera.position);
+    if (controls && controls.target) {
+      tgtRef.current.copy(controls.target);
+    }
+  });
+  return null;
+}
+
+function ViewportQuadStream({ quadRef, zRefMode, zMin, zMax }) {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls);
+  const size = useThree((s) => s.size);
+  const tmp = useMemo(() => ({
+    p: new THREE.Vector3(),
+    dir: new THREE.Vector3(),
+    o: new THREE.Vector3(),
+    v: new THREE.Vector3(),
+  }), []);
+  useFrame(() => {
+    if (!quadRef || !size.width || !size.height) return;
+    const zRef =
+      zRefMode === "band" ? 0.5 * (Number(zMin) + Number(zMax))
+        : (controls && controls.target ? controls.target.z : 0.5 * (Number(zMin) + Number(zMax)));
+    const corners = [
+      [-1, -1],
+      [ 1, -1],
+      [ 1,  1],
+      [-1,  1],
+    ];
+    const out = [];
+    const o = tmp.o;
+    const v = tmp.v;
+    for (let i = 0; i < corners.length; i++) {
+      const [nx, ny] = corners[i];
+      v.set(nx, ny, 0.5).unproject(camera);
+      o.copy(camera.position);
+      const dz = v.z - o.z;
+      if (Math.abs(dz) < 1e-12) {
+        out.push([NaN, NaN]);
+        continue;
+      }
+      const t = (zRef - o.z) / dz;
+      out.push([o.x + (v.x - o.x) * t, o.y + (v.y - o.y) * t]);
+    }
+    quadRef.current = { zRef, pts: out };
+  });
+  return null;
+}
+
+function Minimap2D({ bbox, posRef, tgtRef, centroidsB64, quadRef, tileStateRef }) {
+  const canvasRef = useRef(null);
+  const [tick, setTick] = useState(0);
+  const centroidsRef = useRef(null);
+  useEffect(() => {
+    const bytes = decodeB64ToBytes(centroidsB64);
+    if (!bytes) { centroidsRef.current = null; return; }
+    centroidsRef.current = new Float32Array(
+      bytes.buffer,
+      bytes.byteOffset,
+      Math.floor(bytes.byteLength / 4),
+    );
+  }, [centroidsB64]);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 110);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    const cvs = canvasRef.current;
+    if (!cvs || !bbox || bbox.length !== 6) return;
+    const [minX, minY, , maxX, maxY] = bbox;
+    const ctx = cvs.getContext("2d");
+    if (!ctx) return;
+    const w = cvs.width;
+    const h = cvs.height;
+    const pad = 6;
+    const dx = Math.max(maxX - minX, 1e-9);
+    const dy = Math.max(maxY - minY, 1e-9);
+    const mapX = (x) => pad + ((x - minX) / dx) * (w - 2 * pad);
+    const mapY = (y) => h - pad - ((y - minY) / dy) * (h - 2 * pad);
+    ctx.fillStyle = "rgba(14,16,20,0.94)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "rgba(110,130,165,0.55)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pad + 0.5, pad + 0.5, w - 2 * pad - 1, h - 2 * pad - 1);
+
+    // Tile grid + loaded/pending overlay.
+    const st = tileStateRef ? tileStateRef.current : null;
+    const idx = st && st.tilesIndex ? st.tilesIndex : null;
+    const loaded = st && st.loadedKeys ? st.loadedKeys : null;
+    const pending = st && st.pendingKeys ? st.pendingKeys : null;
+    if (idx && idx.tiles && Array.isArray(idx.tiles)) {
+      for (let i = 0; i < idx.tiles.length; i++) {
+        const t = idx.tiles[i];
+        const b = t.bbox;
+        if (!b || b.length !== 6) continue;
+        const x0 = mapX(b[0]);
+        const y0 = mapY(b[1]);
+        const x1 = mapX(b[3]);
+        const y1 = mapY(b[4]);
+        const rx = Math.min(x0, x1);
+        const ry = Math.min(y0, y1);
+        const rw = Math.abs(x1 - x0);
+        const rh = Math.abs(y1 - y0);
+        const key = `${t.col}_${t.row}`;
+        const isLoaded = loaded && typeof loaded.has === "function" ? loaded.has(key) : false;
+        const isPending = pending && typeof pending.has === "function" ? pending.has(key) : false;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = isLoaded ? "rgba(140,205,255,0.55)" : "rgba(110,130,165,0.18)";
+        ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
+        if (isLoaded) {
+          ctx.fillStyle = "rgba(90,150,230,0.06)";
+          ctx.fillRect(rx, ry, rw, rh);
+        } else if (isPending) {
+          ctx.fillStyle = "rgba(255,210,120,0.06)";
+          ctx.fillRect(rx, ry, rw, rh);
+        }
+      }
+    }
+
+    const arr = centroidsRef.current;
+    if (arr && arr.length >= 2) {
+      const counts = new Uint16Array(w * h);
+      for (let i = 0; i + 1 < arr.length; i += 2) {
+        const px = mapX(arr[i]);
+        const py = mapY(arr[i + 1]);
+        const xi = px | 0;
+        const yi = py | 0;
+        if (xi < 0 || yi < 0 || xi >= w || yi >= h) continue;
+        const idx = yi * w + xi;
+        if (counts[idx] < 65535) counts[idx] += 1;
+      }
+      const img = ctx.getImageData(0, 0, w, h);
+      const data = img.data;
+      for (let i = 0; i < counts.length; i++) {
+        const c = counts[i];
+        if (!c) continue;
+        const a = Math.min(0.9, 0.18 + 0.22 * Math.log2(1 + c));
+        const off = i * 4;
+        data[off + 0] = Math.min(255, data[off + 0] + (160 * a));
+        data[off + 1] = Math.min(255, data[off + 1] + (210 * a));
+        data[off + 2] = Math.min(255, data[off + 2] + (255 * a));
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    // Ray-plane viewport quad (approx frustum footprint at zRef).
+    const q = quadRef ? quadRef.current : null;
+    if (q && q.pts && q.pts.length === 4) {
+      const p0 = q.pts[0];
+      if (Number.isFinite(p0[0]) && Number.isFinite(p0[1])) {
+        ctx.strokeStyle = "rgba(255,255,255,0.7)";
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(mapX(q.pts[0][0]), mapY(q.pts[0][1]));
+        for (let i = 1; i < 4; i++) ctx.lineTo(mapX(q.pts[i][0]), mapY(q.pts[i][1]));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+    const px = posRef.current.x;
+    const py = posRef.current.y;
+    const tx = tgtRef.current.x;
+    const ty = tgtRef.current.y;
+    const vx = tx - px;
+    const vy = ty - py;
+    const len = Math.sqrt(vx * vx + vy * vy) || 1;
+    const seg = Math.max(dx, dy) * 0.1;
+    ctx.strokeStyle = "rgba(85,150,230,0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(mapX(px), mapY(py));
+    ctx.lineTo(mapX(px + (vx / len) * seg), mapY(py + (vy / len) * seg));
+    ctx.stroke();
+    ctx.fillStyle = "rgba(150,210,255,0.95)";
+    ctx.beginPath();
+    ctx.arc(mapX(px), mapY(py), 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }, [bbox, posRef, tgtRef, tick, quadRef, tileStateRef]);
+  if (!bbox || bbox.length !== 6) return null;
+  return h(
+    "div",
+    { className: "polyfiber-r3f-minimap", "aria-label": "XY overview" },
+    h("div", { className: "polyfiber-r3f-minimap-title" }, "XY"),
+    h("canvas", {
+      ref: canvasRef,
+      className: "polyfiber-r3f-minimap-canvas",
+      width: 176,
+      height: 132,
+    }),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Scene root
 // ---------------------------------------------------------------------------
@@ -680,6 +1034,7 @@ function Scene({ model }) {
   const tilesJsonPath      = useTrait(model, "tiles_json_path");
   const bbox               = useTrait(model, "bbox");
   const maxFetches         = useTrait(model, "max_concurrent_fetches");
+  const centroidsB64       = useTrait(model, "centroids_xy_b64");
 
   const [opacity, setOpacity] = useState(1.0);
   const [wireframe, setWireframe] = useState(false);
@@ -687,10 +1042,41 @@ function Scene({ model }) {
 
   const [frameTick, setFrameTick] = useState(0);
   const resetCamera = useCallback(() => setFrameTick((t) => t + 1), []);
+  const [viewCommand, setViewCommand] = useState(null);
+  const [showGrid, setShowGrid] = useState(true);
+  const [zMin, setZMin] = useState(() => (bbox && bbox.length === 6 ? bbox[2] : 0));
+  const [zMax, setZMax] = useState(() => (bbox && bbox.length === 6 ? bbox[5] : 1));
+  const camPosRef = useRef(new THREE.Vector3());
+  const camTgtRef = useRef(new THREE.Vector3());
+  const tileStateRef = useRef({ tilesIndex: null, loadedKeys: null, pendingKeys: null });
+  const quadRef = useRef({ zRef: 0, pts: [] });
 
   const hasBbox  = bbox && bbox.length === 6;
   const bboxKey  = hasBbox ? bbox.join(",") : "";
   const hasServer = !!tileServerUrl;
+
+  useEffect(() => {
+    if (!hasBbox) return;
+    setZMin(bbox[2]);
+    setZMax(bbox[5]);
+  }, [hasBbox, bboxKey, bbox]);
+
+  useEffect(() => {
+    setViewCommand(null);
+  }, [bboxKey]);
+
+  const clipPlanes = useMemo(() => {
+    if (!hasBbox) return null;
+    const bz0 = bbox[2];
+    const bz1 = bbox[5];
+    if (!zBandClipActive(zMin, zMax, bz0, bz1)) return null;
+    return buildZClipPlanes(zMin, zMax);
+  }, [hasBbox, bbox, zMin, zMax]);
+
+  const bz0 = hasBbox ? bbox[2] : 0;
+  const bz1 = hasBbox ? bbox[5] : 1;
+  const zSpan = Math.max(bz1 - bz0, 1e-9);
+  const zStep = Math.max(zSpan / 400, 1e-6);
 
   return h(
     React.Fragment,
@@ -708,6 +1094,7 @@ function Scene({ model }) {
           camera.up.set(0, 0, 1);
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          gl.localClippingEnabled = true;
         },
       },
       h(AdaptiveDpr),
@@ -719,23 +1106,34 @@ function Scene({ model }) {
       }),
       hasBbox && h(KeyLight, { bbox }),
       h("directionalLight", { position: [-3, -2, -4], intensity: 0.22 }),
-      // Neutral preset → cheap HDR-ish environment without shipping an asset;
-      // gives MeshPhysicalMaterial fresnel/clearcoat something meaningful to
-      // reflect. `background:false` so it doesn't override the canvas color.
       h(Environment, { preset: "city", background: false }),
       h(ZUpOrbitControls),
-      hasServer && hasBbox &&
+      hasBbox &&
         h(
           Bounds,
           { fit: false, clip: false, observe: false, margin: 1.35 },
-          h(TileManager, { tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetches }),
-          h(BoundsRefit, { frameTick, bboxKey, bbox }),
+          h(
+            "group",
+            null,
+            hasServer &&
+              h(TileManager, {
+                tileServerUrl,
+                tilesJsonPath,
+                wireframe,
+                opacity,
+                maxFetches,
+                clipPlanes,
+                minimapRef: tileStateRef,
+              }),
+            h(BoundsRefit, { frameTick, bboxKey, bbox, viewCommand }),
+          ),
         ),
-      hasBbox && h(ShadowFloor, { bbox }),
-      hasBbox && h(ReferenceGrid, { bbox }),
-      // Screen-space ambient occlusion — grounds cells and darkens crevices.
-      // Runs after the scene renders, last in the Canvas children.
-      h(GizmoHelper, { alignment: "bottom-right", margin: [80, 72] }, h(GizmoViewport, { labels: ["X", "Y", "Z"] })),
+      hasBbox && h(CameraStream, { posRef: camPosRef, tgtRef: camTgtRef }),
+      hasBbox && h(ViewportQuadStream, { quadRef, zRefMode: "target", zMin, zMax }),
+      hasBbox && showGrid && h(ReferenceGrid, { bbox, clipPlanes }),
+      hasBbox && h(ShadowFloor, { bbox, clipPlanes }),
+      h(GizmoHelper, { alignment: "bottom-right", margin: [80, 88] },
+        h(GizmoViewport, { labels: ["X", "Y", "Z"] })),
     ),
     h(
       "div",
@@ -744,6 +1142,35 @@ function Scene({ model }) {
         "button",
         { type: "button", className: "polyfiber-r3f-cambar-btn", onClick: resetCamera },
         "Reset view",
+      ),
+      h(
+        "button",
+        {
+          type: "button",
+          className: "polyfiber-r3f-cambar-btn",
+          onClick: () => setViewCommand({ id: Date.now(), preset: "top" }),
+        },
+        "Top",
+      ),
+      h(
+        "button",
+        {
+          type: "button",
+          className: "polyfiber-r3f-cambar-btn",
+          onClick: () => setViewCommand({ id: Date.now(), preset: "side" }),
+        },
+        "Side",
+      ),
+      h(
+        "label",
+        { className: "polyfiber-r3f-cambar-ctl" },
+        h("input", {
+          type: "checkbox",
+          checked: showGrid,
+          "aria-label": "Show ground grid",
+          onChange: (e) => setShowGrid(!!e.target.checked),
+        }),
+        " Grid",
       ),
       h(
         "label",
@@ -782,9 +1209,65 @@ function Scene({ model }) {
       h(
         "span",
         { className: "polyfiber-r3f-cambar-hint" },
-        "Left drag: orbit · Scroll: zoom · Right drag: pan",
+        "Orbit / zoom (limited) / pan",
       ),
     ),
+    hasBbox &&
+      h(
+        "div",
+        { className: "polyfiber-r3f-cambar polyfiber-r3f-cambar-row2" },
+        h(
+          "label",
+          { className: "polyfiber-r3f-cambar-ctl polyfiber-r3f-cambar-z" },
+          "Z min ",
+          h("input", {
+            type: "range",
+            min: bz0,
+            max: bz1,
+            step: zStep,
+            value: zMin,
+            onChange: (e) => {
+              const v = parseFloat(e.target.value);
+              const x = Math.min(Math.max(v, bz0), bz1);
+              setZMin(x);
+              setZMax((zm) => (x > zm ? x : zm));
+            },
+          }),
+          ` ${zMin.toFixed(4)}`,
+        ),
+        h(
+          "label",
+          { className: "polyfiber-r3f-cambar-ctl polyfiber-r3f-cambar-z" },
+          "Z max ",
+          h("input", {
+            type: "range",
+            min: bz0,
+            max: bz1,
+            step: zStep,
+            value: zMax,
+            onChange: (e) => {
+              const v = parseFloat(e.target.value);
+              const x = Math.min(Math.max(v, bz0), bz1);
+              setZMax(x);
+              setZMin((zm) => (x < zm ? x : zm));
+            },
+          }),
+          ` ${zMax.toFixed(4)}`,
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            className: "polyfiber-r3f-cambar-btn",
+            onClick: () => {
+              setZMin(bz0);
+              setZMax(bz1);
+            },
+          },
+        "Z full",
+        ),
+      ),
+    h(Minimap2D, { bbox: hasBbox ? bbox : null, posRef: camPosRef, tgtRef: camTgtRef, centroidsB64, quadRef, tileStateRef }),
     h("div", { className: "polyfiber-r3f-hud" }, tileServerUrl
       ? `streaming from ${tileServerUrl}`
       : "waiting for tile server…"

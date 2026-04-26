@@ -68,7 +68,40 @@
 .polyfiber-r3f-cambar-hint {
   font: 11px/1.35 system-ui, sans-serif;
   color: rgba(255, 255, 255, 0.5);
-  max-width: 280px;
+  max-width: 200px;
+}
+
+.polyfiber-r3f-cambar-row2 {
+  top: 46px;
+  max-width: calc(100% - 20px);
+}
+
+.polyfiber-r3f-cambar-z input[type="range"] {
+  width: 120px;
+}
+
+.polyfiber-r3f-minimap {
+  position: absolute;
+  left: 10px;
+  bottom: 36px;
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.polyfiber-r3f-minimap-title {
+  font: 10px/1.2 system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.04em;
+}
+
+.polyfiber-r3f-minimap-canvas {
+  display: block;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .polyfiber-r3f-hud {
@@ -106,5 +139,13 @@
   }
   .polyfiber-r3f-hud {
     color: rgba(0, 0, 0, 0.45);
+  }
+
+  .polyfiber-r3f-minimap-title {
+    color: rgba(0, 0, 0, 0.45);
+  }
+
+  .polyfiber-r3f-minimap-canvas {
+    border-color: rgba(0, 0, 0, 0.12);
   }
 }

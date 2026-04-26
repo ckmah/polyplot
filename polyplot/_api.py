@@ -134,8 +134,26 @@ def plot(
         A marimo ``anywidget`` UI element wrapping :class:`~polyplot.PolyFiberWidget`.
     """
     import marimo as mo
+    import numpy as np
     from polyplot._tile_server import get_or_start
     from polyplot._widget import PolyFiberWidget
+
+    # Minimap payload: centroid per cell_id (XY only), packed as float32 then base64.
+    # Use area-weighted centroids across slices to better match the full footprint.
+    areas = gdf.geometry.area.astype("float64")
+    cents = gdf.geometry.centroid
+    cx = cents.x.astype("float64")
+    cy = cents.y.astype("float64")
+    w = areas.to_numpy()
+    # Guard against zero-area geometries.
+    w = np.where(np.isfinite(w) & (w > 0), w, 1.0)
+    tmp = gpd.GeoDataFrame({"cell_id": gdf["cell_id"], "wx": cx * w, "wy": cy * w, "w": w})
+    grp = tmp.groupby("cell_id", sort=False)[["wx", "wy", "w"]].sum()
+    cxy = np.empty((len(grp), 2), dtype=np.float32)
+    cxy[:, 0] = (grp["wx"] / grp["w"]).to_numpy(dtype=np.float32, copy=False)
+    cxy[:, 1] = (grp["wy"] / grp["w"]).to_numpy(dtype=np.float32, copy=False)
+    import base64
+    centroids_xy_b64 = base64.b64encode(cxy.tobytes()).decode("ascii")
 
     tiles_info = meshify(
         gdf,
@@ -150,5 +168,6 @@ def plot(
         tiles_json_path="tiles.json",
         bbox=tiles_info["scene_bbox"],
         max_concurrent_fetches=max_concurrent_fetches,
+        centroids_xy_b64=centroids_xy_b64,
     )
     return mo.ui.anywidget(widget_model)

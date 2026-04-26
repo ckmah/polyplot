@@ -161,9 +161,28 @@ def _align_ring_min_sqdist(prev: np.ndarray, curr: np.ndarray) -> np.ndarray:
         return _align_to(prev, curr)
     if n > 512:
         return np.roll(curr, -_best_roll_fft(prev, curr), axis=0)
-    best_k = 0
+    # For moderate N, do a robust but sub-quadratic search:
+    # - FFT gives the best correlation shift in O(N log N)
+    # - refine by evaluating a small local window in exact sqdist space
+    # Keep exhaustive for very small rings where overhead dominates and
+    # symmetry-induced local minima are common.
+    if n <= 128:
+        best_k = 0
+        best_cost = np.inf
+        for k in range(n):
+            rolled = np.roll(curr, -k, axis=0)
+            cost = float(np.sum((rolled - prev) ** 2))
+            if cost < best_cost:
+                best_cost = cost
+                best_k = k
+        return np.roll(curr, -best_k, axis=0)
+
+    k0 = int(_best_roll_fft(prev, curr))
+    win = 16
+    best_k = k0
     best_cost = np.inf
-    for k in range(n):
+    for dk in range(-win, win + 1):
+        k = (k0 + dk) % n
         rolled = np.roll(curr, -k, axis=0)
         cost = float(np.sum((rolled - prev) ** 2))
         if cost < best_cost:
@@ -354,6 +373,37 @@ def _cell_max_turning(rings: list[np.ndarray]) -> float:
         turning = np.arccos(dot)
         mx = max(mx, float(turning.max()))
     return mx
+
+
+def _adaptive_ring_targets_from_scores(
+    cell_ids: list,
+    scores: dict,
+    ring_target: int | None,
+    *,
+    adaptive: bool = True,
+    min_mul: float = 0.55,
+    max_mul: float = 2.25,
+    exponent: float = 0.75,
+) -> dict | None:
+    """Like ``_adaptive_ring_targets_for_cells`` but uses precomputed scores."""
+    if ring_target is None:
+        return None
+    base = max(4, int(ring_target))
+    if not adaptive or not cell_ids:
+        return {cid: base for cid in cell_ids}
+    vals = np.asarray([float(scores.get(cid, 0.0)) for cid in cell_ids], dtype=np.float64)
+    ref = float(np.median(vals)) if vals.size else 0.0
+    if ref < 1e-12:
+        return {cid: base for cid in cell_ids}
+    lo = max(4, int(round(base * min_mul)))
+    hi = max(lo, int(round(base * max_mul)))
+    out: dict = {}
+    for cid in cell_ids:
+        s = float(scores.get(cid, 0.0))
+        ratio = (s / ref) ** float(exponent)
+        n = int(round(base * ratio))
+        out[cid] = int(np.clip(n, lo, hi))
+    return out
 
 
 def _adaptive_ring_targets_for_cells(
@@ -639,6 +689,26 @@ def build_loft_mesh(
     max input ring count.
     """
     rings_2d, zs = _collect_rings_for_cell(gdf_cell, z_scale)
+    return build_loft_mesh_from_rings(
+        rings_2d,
+        zs,
+        smooth_iters=smooth_iters,
+        smooth_factor=smooth_factor,
+        ring_vertex_target=ring_vertex_target,
+        ring_curvature_base=ring_curvature_base,
+    )
+
+
+def build_loft_mesh_from_rings(
+    rings_2d: list[np.ndarray],
+    zs: list[float],
+    *,
+    smooth_iters: int = 1,
+    smooth_factor: float = 0.5,
+    ring_vertex_target: int | None = 48,
+    ring_curvature_base: float = 0.28,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[float, ...]]:
+    """Like ``build_loft_mesh`` but consumes pre-extracted ``rings_2d`` + ``zs``."""
 
     n_slices = len(rings_2d)
     empty_pos = np.zeros((0, 3), dtype=np.float32)
@@ -782,7 +852,9 @@ def build_all_cells_mesh(
     backward compatibility with GLB writers that expect list/ndarray-agnostic
     inputs).
     """
-    cell_ids = sorted(gdf_render["cell_id"].unique().tolist())
+    # Group once: avoids O(n_cells * n_rows) boolean slicing.
+    groups = {cid: df for cid, df in gdf_render.groupby("cell_id", sort=False)}
+    cell_ids = sorted(groups.keys())
     n = len(cell_ids)
     if n == 0:
         return [], [], [], [0, 0, 0, 0, 0, 0]
@@ -792,13 +864,19 @@ def build_all_cells_mesh(
     indexed = list(enumerate(cell_ids))
     batches = [indexed[s: s + batch_size] for s in range(0, n, batch_size)]
 
-    # Pre-slice once (avoids repeated boolean indexing inside workers).
-    cell_gdfs = {cid: gdf_render[gdf_render["cell_id"] == cid] for cid in cell_ids}
+    # Extract rings once (used for adaptive sizing + meshing).
+    rings_by_cid: dict = {}
+    zs_by_cid: dict = {}
+    scores: dict = {}
+    for cid in cell_ids:
+        rings, zs = _collect_rings_for_cell(groups[cid], z_scale)
+        rings_by_cid[cid] = rings
+        zs_by_cid[cid] = zs
+        scores[cid] = _cell_max_turning(rings) if rings else 0.0
 
-    n_by_cid = _adaptive_ring_targets_for_cells(
+    n_by_cid = _adaptive_ring_targets_from_scores(
         cell_ids,
-        cell_gdfs,
-        z_scale,
+        scores,
         ring_vertex_target,
         adaptive=ring_adaptive,
         min_mul=ring_adaptive_min_mul,
@@ -812,12 +890,12 @@ def build_all_cells_mesh(
             if _on_progress is not None:
                 _on_progress(i, n, cid)
             rt = ring_vertex_target if n_by_cid is None else n_by_cid[cid]
-            pos, idx, nrm, bbox = build_loft_mesh(
-                cell_gdfs[cid],
-                z_scale,
-                smooth_iters,
-                smooth_factor,
-                rt,
+            pos, idx, nrm, bbox = build_loft_mesh_from_rings(
+                rings_by_cid[cid],
+                zs_by_cid[cid],
+                smooth_iters=smooth_iters,
+                smooth_factor=smooth_factor,
+                ring_vertex_target=rt,
                 ring_curvature_base=ring_curvature_base,
             )
             out.append((i, pos, idx, nrm, bbox))

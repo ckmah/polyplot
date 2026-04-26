@@ -22,8 +22,10 @@ import numpy as np
 from joblib import Parallel, delayed
 
 from polyplot._mesh_build import (
-    _adaptive_ring_targets_for_cells,
-    build_loft_mesh,
+    _adaptive_ring_targets_from_scores,
+    _cell_max_turning,
+    _collect_rings_for_cell,
+    build_loft_mesh_from_rings,
     cell_color,
 )
 
@@ -200,7 +202,9 @@ def compute_tile_grid(gdf_render, tile_size_xy: float = 50.0) -> dict:
 
 def _build_tile_data(
     cell_ids: list,
-    cell_gdfs: dict,
+    rings_by_cid: dict,
+    zs_by_cid: dict,
+    scores_by_cid: dict,
     cfg: dict,
     cell_colors: dict,
 ) -> tuple[bytes, list] | tuple[bytes, None]:
@@ -214,10 +218,9 @@ def _build_tile_data(
     smooth_factor = cfg.get("smooth_factor", 0.5)
     ring_target = cfg.get("ring_target", 48)
     ring_cb = float(cfg.get("ring_curvature_base", 0.28))
-    n_by_cid = _adaptive_ring_targets_for_cells(
+    n_by_cid = _adaptive_ring_targets_from_scores(
         cell_ids,
-        cell_gdfs,
-        z_scale,
+        scores_by_cid,
         ring_target,
         adaptive=cfg.get("ring_adaptive", True),
         min_mul=float(cfg.get("ring_adaptive_min_mul", 0.55)),
@@ -234,12 +237,12 @@ def _build_tile_data(
 
     for cell_id in cell_ids:
         rt = ring_target if n_by_cid is None else n_by_cid[cell_id]
-        pos, idx, nrm, bbox = build_loft_mesh(
-            cell_gdfs[cell_id],
-            z_scale,
-            smooth_iters,
-            smooth_factor,
-            rt,
+        pos, idx, nrm, bbox = build_loft_mesh_from_rings(
+            rings_by_cid[cell_id],
+            zs_by_cid[cell_id],
+            smooth_iters=smooth_iters,
+            smooth_factor=smooth_factor,
+            ring_vertex_target=rt,
             ring_curvature_base=ring_cb,
         )
         if pos.shape[0] == 0:
@@ -338,8 +341,19 @@ def export_tiles(
     all_cell_ids = sorted(gdf_render["cell_id"].unique().tolist())
     cell_colors = {cid: cell_color(i) for i, cid in enumerate(all_cell_ids)}
 
-    # Pre-slice GDF by cell to avoid repeated boolean indexing in parallel workers
-    cell_gdfs = {cid: gdf_render[gdf_render["cell_id"] == cid] for cid in all_cell_ids}
+    # Group once: avoids O(n_cells * n_rows) boolean slicing.
+    groups = {cid: df for cid, df in gdf_render.groupby("cell_id", sort=False)}
+
+    # Pre-extract rings once per cell (used for adaptive sizing + meshing).
+    z_scale = cfg.get("z_scale", 2.0)
+    rings_by_cid: dict = {}
+    zs_by_cid: dict = {}
+    scores_by_cid: dict = {}
+    for cid in all_cell_ids:
+        rings, zs = _collect_rings_for_cell(groups[cid], z_scale)
+        rings_by_cid[cid] = rings
+        zs_by_cid[cid] = zs
+        scores_by_cid[cid] = _cell_max_turning(rings) if rings else 0.0
 
     assignments = compute_tile_grid(gdf_render, tile_size_xy)
 
@@ -351,7 +365,14 @@ def export_tiles(
 
     def _process_tile(tile_key, cell_ids):
         col, row = tile_key
-        glb_bytes, bbox = _build_tile_data(cell_ids, cell_gdfs, cfg, cell_colors)
+        glb_bytes, bbox = _build_tile_data(
+            cell_ids,
+            rings_by_cid,
+            zs_by_cid,
+            scores_by_cid,
+            cfg,
+            cell_colors,
+        )
         if not glb_bytes:
             return None
         name = f"tile_{col}_{row}.glb"
