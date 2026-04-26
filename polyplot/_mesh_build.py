@@ -486,6 +486,11 @@ def _cap_tris_earcut(ring_xy: np.ndarray) -> np.ndarray:
     return np.asarray(tris, dtype=np.int64).reshape(-1, 3)
 
 
+def _orient2d_ccw(p: np.ndarray, q: np.ndarray, r: np.ndarray) -> float:
+    """Twice signed area / CCW turn test: >0 iff ``q`` is left of directed ``pr``."""
+    return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+
 def _in_circumcircle(a: np.ndarray, b: np.ndarray, c: np.ndarray,
                      d: np.ndarray) -> bool:
     """Strict Delaunay in-circle test for a CCW-oriented triangle (a, b, c).
@@ -558,17 +563,15 @@ def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
 
             # Skip if the quadrilateral (a, c, b, d) is non-convex — flipping
             # would produce a triangle outside the current coverage.
-            def _ccw(p, q, r):
-                return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
             pa, pb, pc, pd = pts[a], pts[b], pts[c], pts[d]
-            if _ccw(pa, pc, pb) * _ccw(pa, pd, pb) >= 0:
+            if _orient2d_ccw(pa, pc, pb) * _orient2d_ccw(pa, pd, pb) >= 0:
                 continue
-            if _ccw(pc, pa, pd) * _ccw(pc, pb, pd) >= 0:
+            if _orient2d_ccw(pc, pa, pd) * _orient2d_ccw(pc, pb, pd) >= 0:
                 continue
 
             # Delaunay condition: d must lie outside circumcircle of t0.
             # Re-order t0 to CCW(a, b, c) for the in-circle test.
-            if _ccw(pa, pb, pc) > 0:
+            if _orient2d_ccw(pa, pb, pc) > 0:
                 abc = (pa, pb, pc)
             else:
                 abc = (pa, pc, pb)
@@ -576,8 +579,8 @@ def _cap_tris_cdt(ring_xy: np.ndarray) -> np.ndarray:
                 continue
 
             # Flip diagonal (a, b) -> (c, d). Preserve CCW winding.
-            new0 = [a, c, d] if _ccw(pa, pc, pd) > 0 else [a, d, c]
-            new1 = [b, d, c] if _ccw(pb, pd, pc) > 0 else [b, c, d]
+            new0 = [a, c, d] if _orient2d_ccw(pa, pc, pd) > 0 else [a, d, c]
+            new1 = [b, d, c] if _orient2d_ccw(pb, pd, pc) > 0 else [b, c, d]
             tris[t0i] = new0
             tris[t1i] = new1
             did_flip = True
