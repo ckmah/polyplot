@@ -891,21 +891,21 @@ def build_loft_mesh_from_rings(
         lam, mu = _taubin_lam_mu(smooth_factor)
         verts = positions.astype(np.float64, copy=True)
         n_v = verts.shape[0]
+        # Pre-compute degree (constant per mesh topology).
+        all_vi = np.concatenate([side_faces[:, 0], side_faces[:, 1], side_faces[:, 2]])
+        safe_cnt = np.maximum(np.bincount(all_vi, minlength=n_v).astype(np.float64) * 2, 1.0)
+        nb_a = np.concatenate([side_faces[:, 1], side_faces[:, 2],
+                                side_faces[:, 0], side_faces[:, 2],
+                                side_faces[:, 0], side_faces[:, 1]])
+        nb_v = np.concatenate([side_faces[:, 0], side_faces[:, 0],
+                                side_faces[:, 1], side_faces[:, 1],
+                                side_faces[:, 2], side_faces[:, 2]])
         for _it in range(int(smooth_iters)):
             for _lam in (lam, mu):
+                nb_coords = verts[nb_a]
                 sums = np.zeros_like(verts)
-                cnts = np.zeros(n_v, dtype=np.float64)
                 for col in range(3):
-                    np.add.at(sums[:, col], side_faces[:, 0], verts[side_faces[:, 1], col])
-                    np.add.at(sums[:, col], side_faces[:, 0], verts[side_faces[:, 2], col])
-                    np.add.at(sums[:, col], side_faces[:, 1], verts[side_faces[:, 0], col])
-                    np.add.at(sums[:, col], side_faces[:, 1], verts[side_faces[:, 2], col])
-                    np.add.at(sums[:, col], side_faces[:, 2], verts[side_faces[:, 0], col])
-                    np.add.at(sums[:, col], side_faces[:, 2], verts[side_faces[:, 1], col])
-                np.add.at(cnts, side_faces[:, 0], 2.0)
-                np.add.at(cnts, side_faces[:, 1], 2.0)
-                np.add.at(cnts, side_faces[:, 2], 2.0)
-                safe_cnt = np.where(cnts > 0, cnts, 1.0)
+                    sums[:, col] = np.bincount(nb_v, weights=nb_coords[:, col], minlength=n_v)
                 laplacian = sums / safe_cnt[:, None] - verts
                 verts += _lam * laplacian
         positions = verts.astype(np.float32, copy=False)
