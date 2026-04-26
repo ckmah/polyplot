@@ -449,20 +449,28 @@ def _collect_rings_for_cell(gdf_cell, z_scale: float) -> tuple[list[np.ndarray],
 
 def _cell_max_turning(rings: list[np.ndarray]) -> float:
     """Largest vertex turning angle (radians) across all rings; 0 if empty."""
+    import math as _m
+    if not rings:
+        return 0.0
+    max_n = max(len(r) for r in rings)
+    edges = np.empty((max_n, 2), dtype=np.float64)
+    v_prev = np.empty((max_n, 2), dtype=np.float64)
     mx = 0.0
     for ring in rings:
         n = len(ring)
         if n < 3:
             continue
-        nxt = np.roll(ring, -1, axis=0)
-        prv = np.roll(ring, 1, axis=0)
-        v_prev = ring - prv
-        v_next = nxt - ring
-        lp = np.hypot(v_prev[:, 0], v_prev[:, 1]) + 1e-12
-        ln = np.hypot(v_next[:, 0], v_next[:, 1]) + 1e-12
-        dot = np.clip((v_prev * v_next).sum(axis=1) / (lp * ln), -1.0, 1.0)
-        turning = np.arccos(dot)
-        mx = max(mx, float(turning.max()))
+        edges[:n - 1] = ring[1:] - ring[:-1]
+        edges[n - 1] = ring[0] - ring[-1]
+        v_prev[0] = edges[n - 1]
+        v_prev[1:n] = edges[:n - 1]
+        e = edges[:n]; vp = v_prev[:n]
+        lp = np.hypot(vp[:, 0], vp[:, 1]) + 1e-12
+        ln = np.hypot(e[:, 0], e[:, 1]) + 1e-12
+        d = float(((vp * e).sum(axis=1) / (lp * ln)).min())
+        cur = _m.acos(max(-1.0, min(1.0, d)))
+        if cur > mx:
+            mx = cur
     return mx
 
 
