@@ -689,9 +689,10 @@ def _compute_vertex_normals(positions: np.ndarray,
     v2 = pos64[faces[:, 2]]
     fn = np.cross(v1 - v0, v2 - v0)  # unnormalized => magnitude ~ 2 * area
     normals = np.zeros((n_verts, 3), dtype=np.float64)
-    np.add.at(normals, faces[:, 0], fn)
-    np.add.at(normals, faces[:, 1], fn)
-    np.add.at(normals, faces[:, 2], fn)
+    all_idx = np.concatenate([faces[:, 0], faces[:, 1], faces[:, 2]])
+    for d in range(3):
+        w = np.concatenate([fn[:, d], fn[:, d], fn[:, d]])
+        normals[:, d] = np.bincount(all_idx, weights=w, minlength=n_verts)
     sqlen = (normals * normals).sum(axis=1, keepdims=True)
     lens = np.sqrt(sqlen)
     lens = np.where(lens > 1e-12, lens, 1.0)
