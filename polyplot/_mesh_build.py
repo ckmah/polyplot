@@ -147,8 +147,9 @@ def _ring_vertices(polygon) -> np.ndarray:
     if len(pts) < 3:
         return np.zeros((0, 2), dtype=np.float64)
     # Shoelace winding check: ensure CCW (positive area).
-    pts_next = np.roll(pts, -1, axis=0)
-    if (pts[:, 0] * pts_next[:, 1] - pts_next[:, 0] * pts[:, 1]).sum() < 0:
+    area2 = (pts[:-1, 0] * pts[1:, 1] - pts[1:, 0] * pts[:-1, 1]).sum()
+    area2 += pts[-1, 0] * pts[0, 1] - pts[0, 0] * pts[-1, 1]
+    if area2 < 0:
         pts = pts[::-1]
     return pts
 
