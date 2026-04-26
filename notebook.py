@@ -59,7 +59,7 @@ def _(gpd, pathlib):
     CROP_MAX_ROWS = None
 
     gdf = gpd.read_parquet(
-        pathlib.Path(__file__).parent / "sample_data" / "liver_crop.parquet"
+        pathlib.Path(__file__).parent / "sample_data" / "liver_crop_sample.parquet"
     )
     if CROP_MAX_CELLS is not None:
         _take = gdf["cell_id"].unique()[: int(CROP_MAX_CELLS)]
@@ -71,7 +71,7 @@ def _(gpd, pathlib):
 
 @app.cell
 def _(gdf, po):
-    po.plot(gdf, use_cache=False)
+    po.meshify(gdf, use_cache=False)
     return
 
 
