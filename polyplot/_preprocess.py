@@ -17,5 +17,5 @@ def preprocess_gdf(
     """
     out = gdf.copy()
     if simplify_tol > 0:
-        out["geometry"] = out["geometry"].simplify(simplify_tol, preserve_topology=True)
+        out["geometry"] = out["geometry"].simplify(simplify_tol, preserve_topology=False)
     return out
