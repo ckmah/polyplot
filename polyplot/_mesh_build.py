@@ -875,7 +875,8 @@ def build_loft_mesh_from_rings(
 
     def _cap_flat(ring_xy, base_idx, want_positive_z):
         local = _cap_tris_cdt(ring_xy)
-        local = _orient_cap_tris(local, ring_xy, want_positive_z)
+        if not want_positive_z:
+            local = local[:, [0, 2, 1]]  # flip all CCW → CW for bottom cap normal
         return (local + base_idx).reshape(-1)
 
     if smooth_iters > 0 and positions.shape[0] > 0:
