@@ -6,8 +6,8 @@ Autoresearch scripts may rewrite ``EXTRA_*`` dicts and commit; public API is unc
 
 from __future__ import annotations
 
-EXTRA_LOFT_PARALLEL: dict = {}
-EXTRA_TILE_PARALLEL: dict = {'batch_size': 16}
+EXTRA_LOFT_PARALLEL: dict = {'batch_size': 1}
+EXTRA_TILE_PARALLEL: dict = {'batch_size': 2}
 
 
 def loft_parallel_kw() -> dict:
