@@ -636,7 +636,8 @@ def _compute_vertex_normals(positions: np.ndarray,
     np.add.at(normals, faces[:, 0], fn)
     np.add.at(normals, faces[:, 1], fn)
     np.add.at(normals, faces[:, 2], fn)
-    lens = np.linalg.norm(normals, axis=1, keepdims=True)
+    sqlen = (normals * normals).sum(axis=1, keepdims=True)
+    lens = np.sqrt(sqlen)
     lens = np.where(lens > 1e-12, lens, 1.0)
     return (normals / lens).astype(np.float32)
 
