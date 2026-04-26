@@ -30,8 +30,7 @@ def gdf_cache_key(gdf, smooth: bool) -> str:
     geoms = df.geometry.values
     empty_mask = _shp.is_empty(geoms)
     wkbs = _shp.to_wkb(geoms)
-    for e, w in zip(empty_mask.tolist(), wkbs):
-        h.update(b"empty\n" if e else w)
+    h.update(b"".join(b"empty\n" if bool(e) else w for e, w in zip(empty_mask, wkbs)))
     return h.hexdigest()
 
 
