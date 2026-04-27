@@ -22,38 +22,14 @@ def _():
     import marimo as mo
     import polyplot as po
 
-    return gpd, mo, pathlib, po
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    diagram = mo.mermaid("""
-    flowchart LR
-        subgraph pre["po.meshify()"]
-            direction LR
-            B["Simplify\ngeometry"]
-        end
-        subgraph mesh["mesh building"]
-            direction LR
-            E["Align +\ncorrespondence"] --> H["Strip +\nearcut caps"] --> G["3D Taubin\nsmooth"]
-        end
-        subgraph serve["po.plot()"]
-            direction LR
-            I["Tile server"] --> J["WebGL viewer"]
-        end
-        A[("liver_crop_sample.parquet\n500 cells")] --> pre
-        pre --> mesh
-        mesh --> serve
-    """)
-    diagram
-    return
+    return gpd, pathlib, po
 
 
 @app.cell
 def _(gpd, pathlib):
     """Load the 500-cell subset (``scripts/make_liver_subset.py -n 500``)."""
     gdf = gpd.read_parquet(
-        pathlib.Path(__file__).parent / "sample_data" / "liver_crop_sample.parquet"
+        pathlib.Path(__file__).parent / "sample_data" / "liver_crop.parquet"
     )
     return (gdf,)
 
@@ -69,6 +45,13 @@ def _(gdf, po):
     per_cell = elapsed / n_cells if n_cells else 0.0
     print(f"MESHIFY_SECONDS={elapsed:.6f}", flush=True)
     print(f"MESHIFY_PER_CELL_SECONDS={per_cell:.6f}", flush=True)
+    return
+
+
+@app.cell
+def _(gdf, po):
+    viewer = po.plot(gdf, on_demand=True, max_orbit_distance=2000)
+    viewer
     return
 
 

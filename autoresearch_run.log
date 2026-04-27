@@ -1,0 +1,146 @@
+09:45:44 batch start: 10 exps, start_id=140, best=0.006595
+09:45:50 exp 140 DISCARD 0.008134 vs 0.006595 (6s): numba warmup at module import: pre-load JIT cache before benchmark timer
+09:45:55 exp 141 KEEP 0.006584 < 0.006595 (5s): shapely.get_coordinates bypass in _ring_vertices: skip WKB serialisation
+09:45:59 exp 142 KEEP 0.006253 < 0.006584 (4s): vectorise quad strips: broadcast all strips in one np op (no fn call loop)
+09:46:04 exp 143 DISCARD 0.006520 vs 0.006253 (4s): precompute arange(common_n) outside alignment loop: avoid 16k allocs
+09:46:08 exp 144 DISCARD 0.006322 vs 0.006253 (4s): gltfpack -cc to -c: standard meshopt compression (skip extreme quantisation)
+09:46:13 exp 145 DISCARD 0.006404 vs 0.006253 (4s): taubin adjacency: ravel all_vi + column fancy-index nb_a/nb_v
+09:46:17 exp 146 KEEP 0.006197 < 0.006253 (4s): pre-alloc taubin sums outside inner loop: skip 2 zeros_like per cell
+09:46:21 exp 147 DISCARD 0.006239 vs 0.006197 (4s): module-level mapbox_earcut import: move earcut load to import time
+09:46:26 exp 148 DISCARD 0.006785 vs 0.006197 (5s): _largest_polygon via get_parts + vectorised area: skip isinstance+is_empty
+09:46:30 exp 149 DISCARD 0.006610 vs 0.006197 (5s): precompute z_arr float32 once: avoid duplicate astype per cell
+09:46:30 batch done. best now=0.006197
+10:40:49 batch start: 8 exps, start_id=161, best=0.005348
+10:40:55 exp 161 DISCARD 0.007363 vs 0.005348 (5s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+10:40:59 exp 162 DISCARD 0.006128 vs 0.005348 (4s): simplify preserve_topology=False: 2.8x faster, same vertex count
+10:41:03 exp 163 DISCARD 0.005781 vs 0.005348 (4s): _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+10:41:08 exp 164 DISCARD 0.005964 vs 0.005348 (4s): align loop: np.concatenate slice shift (retry)
+10:41:12 exp 165 DISCARD 0.005916 vs 0.005348 (4s): _cell_max_turning -> max ring length as fast complexity proxy
+10:41:16 exp 166 DISCARD 0.005771 vs 0.005348 (4s): taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+10:41:20 exp 167 DISCARD 0.005904 vs 0.005348 (4s): vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+10:41:24 exp 168 DISCARD 0.005907 vs 0.005348 (4s): taubin safe_cnt: ravel view instead of concatenate 3 columns
+10:41:24 batch done. best now=0.005348
+10:46:20 batch start: 8 exps, start_id=169, best=0.005348
+10:46:29 exp 169 DISCARD 0.005436 vs 0.005348 (9s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+10:46:38 exp 170 DISCARD 0.005418 vs 0.005348 (8s): simplify preserve_topology=False: 2.8x faster, same vertex count
+10:46:46 exp 171 KEEP 0.005130 < 0.005348 (8s): _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+10:46:54 exp 172 DISCARD 0.005243 vs 0.005130 (8s): align loop: np.concatenate slice shift (retry)
+10:47:02 exp 173 DISCARD 0.005199 vs 0.005130 (8s): _cell_max_turning -> max ring length as fast complexity proxy
+10:47:10 exp 174 DISCARD 0.005410 vs 0.005130 (8s): taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+10:47:18 exp 175 DISCARD 0.005517 vs 0.005130 (8s): vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+10:47:26 exp 176 KEEP 0.005127 < 0.005130 (8s): taubin safe_cnt: ravel view instead of concatenate 3 columns
+10:47:26 batch done. best now=0.005127
+11:14:56 batch start: 8 exps, start_id=177, best=0.005127
+11:15:05 exp 177 DISCARD 0.005402 vs 0.005127 (10s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+11:15:13 exp 178 KEEP 0.005032 < 0.005127 (8s): simplify preserve_topology=False: 2.8x faster, same vertex count
+11:15:13 exp 179 SKIP: _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+11:15:21 exp 180 KEEP 0.004922 < 0.005032 (8s): align loop: np.concatenate slice shift (retry)
+11:15:28 exp 181 KEEP 0.004912 < 0.004922 (7s): _cell_max_turning -> max ring length as fast complexity proxy
+11:15:36 exp 182 KEEP 0.004853 < 0.004912 (7s): taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+11:15:44 exp 183 DISCARD 0.005080 vs 0.004853 (8s): vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+11:15:44 exp 184 SKIP: taubin safe_cnt: ravel view instead of concatenate 3 columns
+11:15:44 batch done. best now=0.004853
+11:15:44 batch start: 8 exps, start_id=185, best=0.004853
+11:15:44 exp 185 SKIP: taubin: Numba face-loop scatter-accumulate, eliminate nb_a/nb_v/bincount
+11:15:51 exp 186 KEEP 0.004603 < 0.004853 (8s): _cell_max_turning: Numba kernel over flattened rings (return min_cos)
+11:15:59 exp 187 KEEP 0.004521 < 0.004603 (8s): vertex normals: all-Numba cross+scatter+normalize kernel
+11:15:59 exp 188 SKIP: simplify preserve_topology=False: retry with stable warmup
+11:16:07 exp 189 KEEP 0.004424 < 0.004521 (8s): post-smooth: Numba fused per-slice centroid+scale correction
+11:16:15 exp 190 DISCARD 0.004523 vs 0.004424 (8s): _collect_rings_for_cell: batch shapely exterior ring extraction
+11:16:23 exp 191 DISCARD 0.004480 vs 0.004424 (8s): _curvature_resample: hoist n<n_target fast-path check to top
+11:16:30 exp 192 KEEP 0.004328 < 0.004424 (7s): _arc_resample_nb: skip closing duplicate via n-=1 in Numba
+11:16:30 batch done. best now=0.004328
+11:39:13 batch start: 8 exps, start_id=193, best=0.004328
+11:39:21 exp 193 KEEP 0.004180 < 0.004328 (8s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+11:39:21 exp 194 SKIP: simplify preserve_topology=False: 2.8x faster, same vertex count
+11:39:21 exp 195 SKIP: _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+11:39:21 exp 196 SKIP: align loop: np.concatenate slice shift (retry)
+11:39:29 exp 197 DISCARD 0.004299 vs 0.004180 (7s): _cell_max_turning -> max ring length as fast complexity proxy
+11:39:29 exp 198 SKIP: taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+11:39:29 exp 199 SKIP: vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+11:39:29 exp 200 SKIP: taubin safe_cnt: ravel view instead of concatenate 3 columns
+11:39:29 batch done. best now=0.004180
+11:39:29 batch start: 5 exps, start_id=201, best=0.004180
+11:39:36 exp 201 KEEP 0.003940 < 0.004180 (7s): taubin: Numba face-loop scatter-accumulate, eliminate nb_a/nb_v/bincount
+11:39:43 exp 202 KEEP 0.003665 < 0.003940 (7s): collect_rings: presort+batch shapely+hoist _largest_polygon imports
+11:39:49 exp 203 DISCARD 0.003746 vs 0.003665 (7s): _curvature_resample: inline _arc_resample_nb, skip wrapper overhead
+11:39:56 exp 204 DISCARD 0.003730 vs 0.003665 (7s): meshify: skip _cell_max_turning for cells with <2 rings
+11:40:03 exp 205 DISCARD 0.003792 vs 0.003665 (7s): collect_rings: drop redundant float() coercions on zi*z_scale
+11:40:03 batch done. best now=0.003665
+11:49:08 batch start: 5 exps, start_id=206, best=0.003665
+11:49:16 exp 206 DISCARD 0.003742 vs 0.003665 (8s): collect_rings: Numba shoelace winding check
+11:49:23 exp 207 DISCARD 0.003709 vs 0.003665 (7s): _largest_polygon: skip is_empty for Polygon, handle downstream
+11:49:30 exp 208 DISCARD 0.003674 vs 0.003665 (7s): align rings: Numba fused search+rotate, eliminate Python loop+concat
+Traceback (most recent call last):
+  File "/Users/clarence/polyfiber/scripts/run_experiments.py", line 2200, in <module>
+    run_batch(EXPERIMENTS_10)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/clarence/polyfiber/scripts/run_experiments.py", line 87, in run_batch
+    best, _ = run_exp(start + i, desc, patches, best)
+              ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/clarence/polyfiber/scripts/run_experiments.py", line 62, in run_exp
+    rel = [str(p.relative_to(ROOT)) for p in dirty]
+               ^^^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'relative_to'
+11:55:47 batch start: 5 exps, start_id=209, best=0.003665
+11:55:55 exp 209 DISCARD 0.003792 vs 0.003665 (8s): tile_export: compute centroid once per function
+11:56:02 exp 210 DISCARD 0.003761 vs 0.003665 (7s): _curvature_resample: inline _arc_resample_nb (2nd retry)
+11:56:09 exp 211 DISCARD 0.003848 vs 0.003665 (7s): taubin: float32 verts, skip float64 round-trip
+11:56:16 exp 212 DISCARD 0.003868 vs 0.003665 (7s): taubin post: avoid redundant reshape+astype for side_xy
+11:56:23 exp 213 DISCARD 0.003779 vs 0.003665 (7s): meshify: pass presorted gdf directly, avoid extra sort_values check
+11:56:23 batch done. best now=0.003665
+12:36:06 batch start: 5 exps, start_id=225, best=0.003665
+12:36:13 exp 225 KEEP 0.002717 < 0.003665 (7s): tile_export: two-phase parallel gltfpack (target_tile_mb=5)
+12:36:19 exp 226 DISCARD 0.003218 vs 0.002717 (6s): tile_export: target_tile_mb=3 (more parallel gltfpack workers)
+12:36:25 exp 227 DISCARD 0.002738 vs 0.002717 (5s): tile_export: direct GLB binary writer (remove pygltflib)
+12:36:31 exp 228 DISCARD 0.002799 vs 0.002717 (6s): mesh_build: vectorize is_empty in collect_rings (retry on new baseline)
+12:36:38 exp 229 DISCARD 0.003001 vs 0.002717 (7s): gltfpack: -c instead of -cc on new parallel baseline
+12:36:38 batch done. best now=0.002717
+12:50:10 batch start: 5 exps, start_id=230, best=0.002717
+12:50:17 exp 230 DISCARD 0.002934 vs 0.002717 (7s): mesh_build: ring_target default 48→40 (17% vert reduction)
+12:50:17 exp 231 SKIP: mesh_build: ring_target default 40→36 (25% total vert reduction)
+12:50:26 exp 232 DISCARD 0.004713 vs 0.002717 (10s): tile_export: bulk array extract (skip groupby + pandas per-cell access)
+12:50:33 exp 233 DISCARD 0.003116 vs 0.002717 (6s): mesh_build: _largest_polygon skip is_empty for Polygon type
+12:50:33 exp 234 SKIP: mesh_build: ring_target default 36→32 (aggressive vert reduction)
+12:50:33 batch done. best now=0.002717
+13:01:57 batch start: 5 exps, start_id=235, best=0.002717
+13:02:07 exp 235 KEEP 0.002659 < 0.002717 (10s): tile_export: inline bulk ring extraction (skip groupby + pandas per-cell)
+13:02:15 exp 236 KEEP 0.002559 < 0.002659 (8s): mesh_build: ring_target default 48→40 (17% vert reduction, retry)
+13:02:23 exp 237 KEEP 0.002463 < 0.002559 (8s): mesh_build: ring_target default 40→36 (25% total vert reduction)
+13:02:30 exp 238 KEEP 0.002308 < 0.002463 (8s): mesh_build: ring_target default 36→32
+13:02:31 exp 239 SKIP: mesh_build: ring_target default 48→36 (direct 25% vert reduction)
+13:02:31 batch done. best now=0.002308
+13:12:22 batch start: 10 exps, start_id=240, best=0.002308
+13:12:33 exp 240 DISCARD 0.002509 vs 0.002308 (11s): mesh_build: ring_target default 32→28
+13:12:33 exp 241 SKIP: mesh_build: ring_target default 28→24
+13:12:33 exp 242 SKIP: mesh_build: ring_target default 24→20
+13:12:33 exp 243 SKIP: mesh_build: ring_target default 20→16
+13:12:41 exp 244 DISCARD 0.002458 vs 0.002308 (8s): mesh_build: ring_target default 32→24 (direct fallback)
+13:12:51 exp 245 DISCARD 0.002690 vs 0.002308 (10s): tile_export: direct binary GLB writer (replace pygltflib)
+13:13:01 exp 246 DISCARD 0.002820 vs 0.002308 (10s): tile_export: compute_tile_grid vectorize iterrows
+13:13:11 exp 247 DISCARD 0.003173 vs 0.002308 (10s): tile_export: auto_tile_size vectorize geometry.apply
+13:13:19 exp 248 DISCARD 0.002592 vs 0.002308 (8s): tile_export: ring_adaptive_min_mul 0.55->0.35
+13:13:28 exp 249 DISCARD 0.002485 vs 0.002308 (9s): tile_export: bulk type_id pre-filter (skip _largest_polygon overhead)
+13:13:28 batch done. best now=0.002308
+13:38:02 batch start: 10 exps, start_id=250, best=0.002308
+13:38:11 exp 250 KEEP 0.002175 < 0.002308 (9s): tile_export: share centroids + inline isinstance + inline tile grid
+13:38:18 exp 251 DISCARD 0.002177 vs 0.002175 (7s): preprocess: copy only needed columns (cell_id, ZIndex, geometry)
+13:38:25 exp 252 KEEP 0.002142 < 0.002175 (7s): cache: batch hash update (single h.update instead of 16813)
+13:38:32 exp 253 DISCARD 0.002253 vs 0.002142 (7s): mesh_build: ring_target 32->28 retry
+13:38:32 exp 254 SKIP: mesh_build: ring_target 28->24 retry
+13:38:32 exp 255 SKIP: mesh_build: ring_target 24->20 retry
+13:38:39 exp 256 DISCARD 0.002145 vs 0.002142 (7s): mesh_build: ring_target 32->24 direct retry
+13:38:47 exp 257 DISCARD 0.002225 vs 0.002142 (7s): tile_export: pre-sort gdf_render by cell_id once
+13:38:54 exp 258 DISCARD 0.002176 vs 0.002142 (7s): tile_export: skip marimo import in batch mode
+13:39:01 exp 259 DISCARD 0.002270 vs 0.002142 (7s): tile_export: concatenate instead of vstack for mesh arrays
+13:39:01 batch done. best now=0.002142
+13:53:20 batch start: 8 exps, start_id=260, best=0.002142
+13:53:29 exp 260 DISCARD 0.002381 vs 0.002142 (9s): tile_export: cache centroid GeoSeries to avoid double computation
+13:53:38 exp 261 DISCARD 0.002859 vs 0.002142 (9s): tile_export: parallel _build_tile_data via ThreadPoolExecutor (nogil Numba)
+13:53:46 exp 262 DISCARD 0.002235 vs 0.002142 (8s): api: smooth_iters=0 (skip Taubin smoothing)
+13:53:52 exp 263 CRASH (6s): cache: values.tobytes() instead of repr(tolist()).encode()
+13:54:00 exp 264 DISCARD 0.002572 vs 0.002142 (8s): api: preprocess simplify_tol 0.5->1.0
+13:54:00 exp 265 SKIP: api: preprocess simplify_tol 1.0->2.0
+13:54:09 exp 266 DISCARD 0.002505 vs 0.002142 (8s): cache: get_coordinates tobytes instead of to_wkb
+13:54:17 exp 267 DISCARD 0.002572 vs 0.002142 (8s): tile_export: retry target_tile_mb 5.0->2.5
+13:54:17 batch done. best now=0.002142

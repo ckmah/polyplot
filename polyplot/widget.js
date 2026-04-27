@@ -34,6 +34,8 @@ const TILE_UNLOAD_MUL = 1.38;
 const TILE_PAD_XY = 0.45;
 const TILE_STALE_LOAD_SLACK = 1.06;
 const TILE_FADE_MS = 280;
+// Spatial fade band for streamed tiles near unload radius (fraction of rUnload).
+const TILE_EDGE_FADE_BAND_FRAC = 0.14;
 const CAMERA_RESET_MS = 360;
 // Grazing XY views (|view·Z| low): shrink far as a fraction of depth-to-bbox along
 // look direction so the frustum does not include the full lateral extent at once.
@@ -232,7 +234,7 @@ function ZUpOrbitControls() {
   });
 }
 
-function BoundsRefit({ frameTick, bboxKey, bbox, viewCommand }) {
+function BoundsRefit({ frameTick, bboxKey, bbox, viewCommand, maxOrbitDistance }) {
   const api = useBounds();
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -298,7 +300,11 @@ function BoundsRefit({ frameTick, bboxKey, bbox, viewCommand }) {
     );
     const { center: c } = framingFromBBox(bbox);
     const center = new THREE.Vector3(c[0], c[1], c[2]);
-    const distance = fitCameraDistanceFromBBox(bbox, camera.fov, aspect, 1.32);
+    const fitDistance = fitCameraDistanceFromBBox(bbox, camera.fov, aspect, 1.32);
+    const cap = Number(maxOrbitDistance) || 0;
+    // If the user provided a zoom-out cap, start *just inside* it so the initial
+    // framing is stable and the user can still zoom out slightly.
+    const distance = cap > 0 ? Math.min(fitDistance, cap * 0.94) : fitDistance;
     const pos = center.clone().addScaledVector(INITIAL_VIEW_DIR, distance);
     queueMicrotask(() => {
       api.refresh(sceneBox);
@@ -311,8 +317,10 @@ function BoundsRefit({ frameTick, bboxKey, bbox, viewCommand }) {
       const canAnimate =
         frameTick > 0 && controls && controls.target;
       if (controls && controls.target) {
-        controls.minDistance = Math.max(extent * 1e-5, distance * ZOOM_MIN_FACTOR);
-        controls.maxDistance = distance * ZOOM_MAX_FACTOR;
+        controls.minDistance = Math.max(extent * 1e-5, fitDistance * ZOOM_MIN_FACTOR);
+        let md = fitDistance * ZOOM_MAX_FACTOR;
+        if (cap > 0) md = Math.min(md, cap);
+        controls.maxDistance = md;
         controls.minPolarAngle = ORBIT_MIN_POLAR;
         controls.maxPolarAngle = ORBIT_MAX_POLAR;
       }
@@ -342,7 +350,7 @@ function BoundsRefit({ frameTick, bboxKey, bbox, viewCommand }) {
       camera.updateMatrixWorld();
       invalidate();
     });
-  }, [api, frameTick, bboxKey, size.width, size.height, bbox, camera, controls, invalidate, applyRenderFar]);
+  }, [api, frameTick, bboxKey, size.width, size.height, bbox, camera, controls, invalidate, applyRenderFar, maxOrbitDistance]);
 
   useLayoutEffect(() => {
     if (!viewCommand || !bbox || bbox.length !== 6) return;
@@ -526,7 +534,7 @@ function _makeMaterial(wireframe, opacity) {
   });
 }
 
-function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetches, clipPlanes, minimapRef }) {
+function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetches, clipPlanes, minimapRef, maxOrbitDistance }) {
   const { invalidate } = useThree();
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls);
@@ -601,6 +609,25 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
 
   const cap = maxFetches == null || maxFetches < 1 ? 4 : maxFetches;
 
+  function _loadRadii(idx) {
+    // Best practice: streaming budget should NOT depend on camera angle.
+    // Use a fixed, position-based radius derived from maxOrbitDistance (or the
+    // current OrbitControls maxDistance if not provided).
+    const ts = Number(idx.tile_size_xy) || 0;
+    const capD = Number(maxOrbitDistance) || 0;
+    let budget = capD;
+    if (!(budget > 0) && controls && isFinite(controls.maxDistance)) {
+      budget = Number(controls.maxDistance) || 0;
+    }
+    if (!(budget > 0)) {
+      // Fallback for weird states: old behavior.
+      return tileStreamingRadii(camera.far, ts);
+    }
+    const rLoad = budget + ts * TILE_PAD_XY;
+    const rUnload = rLoad * TILE_UNLOAD_MUL;
+    return { rLoad, rUnload };
+  }
+
   function _pumpLoads() {
     const idx = tilesRef.current;
     const base = tileServerUrlRef.current;
@@ -608,7 +635,7 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
     const px = camera.position.x;
     const py = camera.position.y;
     const pz = camera.position.z;
-    const { rLoad } = tileStreamingRadii(camera.far, idx.tile_size_xy);
+    const { rLoad } = _loadRadii(idx);
     const candidates = [];
     for (let i = 0; i < idx.tiles.length; i++) {
       const tile = idx.tiles[i];
@@ -631,7 +658,7 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
     const px = camera.position.x;
     const py = camera.position.y;
     const pz = camera.position.z;
-    const { rUnload } = tileStreamingRadii(camera.far, idx.tile_size_xy);
+    const { rUnload } = _loadRadii(idx);
     for (const key of [...loadedRef.current.keys()]) {
       const tile = tileEntryForKey(idx.tiles, key);
       if (!tile) continue;
@@ -657,7 +684,7 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
         const idx0 = tilesRef.current;
         const tile0 = idx0 && idx0.tiles ? tileEntryForKey(idx0.tiles, key) : null;
         if (tile0) {
-          const { rLoad } = tileStreamingRadii(camera.far, idx0.tile_size_xy);
+          const { rLoad } = _loadRadii(idx0);
           const d0 = tileDistanceToAABB(
             camera.position.x,
             camera.position.y,
@@ -727,6 +754,12 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
       })
       .then((data) => {
         if (!alive || gen !== fetchGenRef.current) return;
+        // Precompute key->tile for hot-path lookups.
+        try {
+          data._tileByKey = new Map((data.tiles || []).map((t) => [`${t.col}_${t.row}`, t]));
+        } catch (e) {
+          data._tileByKey = null;
+        }
         tilesRef.current = data;
         if (minimapRef) {
           minimapRef.current = minimapRef.current || {};
@@ -778,22 +811,44 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
   }, [controls]);
 
   useFrame(() => {
+    const idx = tilesRef.current;
+    const byKey = idx && idx._tileByKey ? idx._tileByKey : null;
     const fades = tileFadeStartRef.current;
-    if (fades.size === 0) return;
     const op = propsRef.current.opacity;
     const aFull = op == null ? 1 : Math.min(1, Math.max(0, op));
+    if (!idx || !idx.tiles || !byKey) {
+      if (fades.size > 0) invalidateRef.current();
+      return;
+    }
+
+    const px = camera.position.x;
+    const py = camera.position.y;
+    const pz = camera.position.z;
+    const { rUnload } = _loadRadii(idx);
+    const fadeBand = Math.max(1e-6, rUnload * TILE_EDGE_FADE_BAND_FRAC);
+    const fadeStart = Math.max(0, rUnload - fadeBand);
     const now = performance.now();
+
     let needInv = false;
-    for (const key of [...fades.keys()]) {
-      const group = loadedRef.current.get(key);
-      if (!group) {
-        fades.delete(key);
-        continue;
+    for (const [key, group] of loadedRef.current.entries()) {
+      const tile = byKey.get(key);
+      if (!tile || !group) continue;
+      const d = tileDistanceToAABB(px, py, pz, tile.bbox);
+      let spatial = 1;
+      if (d >= fadeStart) {
+        const u = Math.min(1, Math.max(0, (d - fadeStart) / Math.max(1e-9, (rUnload - fadeStart))));
+        spatial = 1 - (u * u * (3 - 2 * u));
       }
-      const t0 = fades.get(key);
-      const u = Math.min(1, (now - t0) / TILE_FADE_MS);
-      const sm = u * u * (3 - 2 * u);
-      const a = aFull * sm;
+
+      let temporal = 1;
+      if (fades.has(key)) {
+        const t0 = fades.get(key);
+        const u = Math.min(1, (now - t0) / TILE_FADE_MS);
+        temporal = u * u * (3 - 2 * u);
+        if (u >= 1) fades.delete(key);
+      }
+
+      const a = aFull * spatial * temporal;
       group.traverse((obj) => {
         if (!obj.isMesh || !obj.material) return;
         obj.material.opacity = a;
@@ -801,17 +856,7 @@ function TileManager({ tileServerUrl, tilesJsonPath, wireframe, opacity, maxFetc
         obj.material.depthWrite = a >= 0.99 && aFull >= 0.99;
         obj.material.needsUpdate = true;
       });
-      needInv = true;
-      if (u >= 1) {
-        fades.delete(key);
-        group.traverse((obj) => {
-          if (!obj.isMesh || !obj.material) return;
-          obj.material.opacity = aFull;
-          obj.material.transparent = aFull < 1;
-          obj.material.depthWrite = aFull >= 0.99;
-          obj.material.needsUpdate = true;
-        });
-      }
+      needInv = needInv || spatial < 0.999 || temporal < 0.999;
     }
     if (needInv) invalidateRef.current();
   });
@@ -880,10 +925,36 @@ function ViewportQuadStream({ quadRef, zRefMode, zMin, zMax }) {
   return null;
 }
 
-function Minimap2D({ bbox, posRef, tgtRef, centroidsB64, quadRef, tileStateRef }) {
+function _pointInConvexQuad(px, py, pts) {
+  if (!pts || pts.length !== 4) return false;
+  // Reject NaNs early.
+  for (let i = 0; i < 4; i++) {
+    const p = pts[i];
+    if (!p || !isFinite(p[0]) || !isFinite(p[1])) return false;
+  }
+  // Check consistent winding using cross products.
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % 4];
+    const ex = b[0] - a[0];
+    const ey = b[1] - a[1];
+    const vx = px - a[0];
+    const vy = py - a[1];
+    const c = ex * vy - ey * vx;
+    if (Math.abs(c) < 1e-12) continue;
+    const s = c > 0 ? 1 : -1;
+    if (sign === 0) sign = s;
+    else if (s !== sign) return false;
+  }
+  return true;
+}
+
+function Minimap2D({ model, bbox, posRef, tgtRef, centroidsB64, cellIdsJson, quadRef, tileStateRef, onDemand }) {
   const canvasRef = useRef(null);
   const [tick, setTick] = useState(0);
   const centroidsRef = useRef(null);
+  const cellIdsRef = useRef([]);
   useEffect(() => {
     const bytes = decodeB64ToBytes(centroidsB64);
     if (!bytes) { centroidsRef.current = null; return; }
@@ -894,9 +965,19 @@ function Minimap2D({ bbox, posRef, tgtRef, centroidsB64, quadRef, tileStateRef }
     );
   }, [centroidsB64]);
   useEffect(() => {
+    try {
+      const ids = JSON.parse(cellIdsJson || "[]");
+      cellIdsRef.current = Array.isArray(ids) ? ids : [];
+    } catch {
+      cellIdsRef.current = [];
+    }
+  }, [cellIdsJson]);
+  useEffect(() => {
     const id = setInterval(() => setTick((n) => n + 1), 110);
     return () => clearInterval(id);
   }, []);
+
+  const onClick = useCallback(() => {}, []);
   useEffect(() => {
     const cvs = canvasRef.current;
     if (!cvs || !bbox || bbox.length !== 6) return;
@@ -1021,6 +1102,7 @@ function Minimap2D({ bbox, posRef, tgtRef, centroidsB64, quadRef, tileStateRef }
       className: "polyfiber-r3f-minimap-canvas",
       width: 176,
       height: 132,
+      onClick,
     }),
   );
 }
@@ -1035,7 +1117,9 @@ function Scene({ model }) {
   const bbox               = useTrait(model, "bbox");
   const maxFetches         = useTrait(model, "max_concurrent_fetches");
   const centroidsB64       = useTrait(model, "centroids_xy_b64");
-
+  const centroidsCellIdsJson = useTrait(model, "centroids_cell_ids_json");
+  const onDemand           = useTrait(model, "on_demand");
+  const maxOrbitDistance   = useTrait(model, "max_orbit_distance");
   const [opacity, setOpacity] = useState(1.0);
   const [wireframe, setWireframe] = useState(false);
   const [background, setBackground] = useState("#111418");
@@ -1053,6 +1137,8 @@ function Scene({ model }) {
 
   const hasBbox  = bbox && bbox.length === 6;
   const bboxKey  = hasBbox ? bbox.join(",") : "";
+  // On-demand mode is still tile streaming; the difference is the enforced
+  // distance cap (maxOrbitDistance) that bounds how much can load.
   const hasServer = !!tileServerUrl;
 
   useEffect(() => {
@@ -1124,8 +1210,9 @@ function Scene({ model }) {
                 maxFetches,
                 clipPlanes,
                 minimapRef: tileStateRef,
+                maxOrbitDistance,
               }),
-            h(BoundsRefit, { frameTick, bboxKey, bbox, viewCommand }),
+            h(BoundsRefit, { frameTick, bboxKey, bbox, viewCommand, maxOrbitDistance }),
           ),
         ),
       hasBbox && h(CameraStream, { posRef: camPosRef, tgtRef: camTgtRef }),
@@ -1267,10 +1354,35 @@ function Scene({ model }) {
         "Z full",
         ),
       ),
-    h(Minimap2D, { bbox: hasBbox ? bbox : null, posRef: camPosRef, tgtRef: camTgtRef, centroidsB64, quadRef, tileStateRef }),
-    h("div", { className: "polyfiber-r3f-hud" }, tileServerUrl
-      ? `streaming from ${tileServerUrl}`
-      : "waiting for tile server…"
+    h(Minimap2D, {
+      model,
+      bbox: hasBbox ? bbox : null,
+      posRef: camPosRef,
+      tgtRef: camTgtRef,
+      centroidsB64,
+      cellIdsJson: centroidsCellIdsJson,
+      quadRef,
+      tileStateRef,
+      onDemand: !!onDemand,
+    }),
+    h(
+      "div",
+      { className: "polyfiber-r3f-hud-stack" },
+      h(
+        "div",
+        { className: "polyfiber-r3f-hud-line" },
+        tileServerUrl
+          ? (onDemand ? `on-demand tiles from ${tileServerUrl}` : `streaming from ${tileServerUrl}`)
+          : (onDemand ? "on-demand tiles" : "waiting for tile server…"),
+      ),
+      onDemand
+        ? h(
+            "div",
+            { className: "polyfiber-r3f-hud-line" },
+            `cap=${Number(maxOrbitDistance) || 0}`,
+          )
+        : null,
+      null,
     ),
   );
 }
@@ -1285,4 +1397,6 @@ function render({ model, el }) {
   };
 }
 
+// anywidget supports either a named `render` export or a default export with `render`.
+export { render };
 export default { render };

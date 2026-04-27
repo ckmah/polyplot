@@ -1,0 +1,1006 @@
+08:42:37 Starting autoresearch loop: 99 experiments, start_id=2, best=0.010967
+08:42:37 Starting autoresearch loop: 99 experiments, start_id=2, best=0.010967
+08:42:37 [1/99] exp 2: skip post-smooth ring re-alignment (half of all alignment calls)
+08:42:37 [1/99] exp 2: skip post-smooth ring re-alignment (half of all alignment calls)
+0.011372
+08:42:45 exp 2 DISCARD 0.011372 vs 0.010967 (8s): skip post-smooth ring re-alignment (half of all alignment calls)
+08:42:45 exp 2 DISCARD 0.011372 vs 0.010967 (8s): skip post-smooth ring re-alignment (half of all alignment calls)
+08:42:45 [2/99] exp 3: numba zero-alloc exhaustive alignment (no (n,n,2) cost matrix per call)
+08:42:45 [2/99] exp 3: numba zero-alloc exhaustive alignment (no (n,n,2) cost matrix per call)
+0.009361
+08:42:52 exp 3 KEEP 0.009361 < 0.010967 (6s): numba zero-alloc exhaustive alignment (no (n,n,2) cost matrix per call)
+08:42:52 exp 3 KEEP 0.009361 < 0.010967 (6s): numba zero-alloc exhaustive alignment (no (n,n,2) cost matrix per call)
+08:42:52 [3/99] exp 4: hoist mapbox_earcut to module level (remove per-call import lookup)
+08:42:52 [3/99] exp 4: hoist mapbox_earcut to module level (remove per-call import lookup)
+0.009439
+08:42:58 exp 4 DISCARD 0.009439 vs 0.009361 (6s): hoist mapbox_earcut to module level (remove per-call import lookup)
+08:42:58 exp 4 DISCARD 0.009439 vs 0.009361 (6s): hoist mapbox_earcut to module level (remove per-call import lookup)
+08:42:58 [4/99] exp 5: vectorise quad strips: one broadcast op replaces per-slice loop
+08:42:58 [4/99] exp 5: vectorise quad strips: one broadcast op replaces per-slice loop
+0.010454
+08:43:05 exp 5 DISCARD 0.010454 vs 0.009361 (7s): vectorise quad strips: one broadcast op replaces per-slice loop
+08:43:05 exp 5 DISCARD 0.010454 vs 0.009361 (7s): vectorise quad strips: one broadcast op replaces per-slice loop
+08:43:05 [5/99] exp 6: np.bincount scatter for vertex normals (replace slow np.add.at)
+08:43:05 [5/99] exp 6: np.bincount scatter for vertex normals (replace slow np.add.at)
+0.008943
+08:43:11 exp 6 KEEP 0.008943 < 0.009361 (6s): np.bincount scatter for vertex normals (replace slow np.add.at)
+08:43:11 exp 6 KEEP 0.008943 < 0.009361 (6s): np.bincount scatter for vertex normals (replace slow np.add.at)
+08:43:11 [6/99] exp 7: vectorise post-smooth centroid+radius restore (no per-slice Python loop)
+08:43:11 [6/99] exp 7: vectorise post-smooth centroid+radius restore (no per-slice Python loop)
+0.008431
+08:43:17 exp 7 KEEP 0.008431 < 0.008943 (6s): vectorise post-smooth centroid+radius restore (no per-slice Python loop)
+08:43:17 exp 7 KEEP 0.008431 < 0.008943 (6s): vectorise post-smooth centroid+radius restore (no per-slice Python loop)
+08:43:17 [7/99] exp 8: inline numpy Laplacian smooth (skip trimesh Trimesh object construction)
+08:43:17 [7/99] exp 8: inline numpy Laplacian smooth (skip trimesh Trimesh object construction)
+0.008198
+08:43:22 exp 8 KEEP 0.008198 < 0.008431 (5s): inline numpy Laplacian smooth (skip trimesh Trimesh object construction)
+08:43:22 exp 8 KEEP 0.008198 < 0.008431 (5s): inline numpy Laplacian smooth (skip trimesh Trimesh object construction)
+08:43:22 [8/99] exp 9: structured-grid Taubin: precompute loft adjacency once (avoid face scatter)
+08:43:22 [8/99] exp 9: structured-grid Taubin: precompute loft adjacency once (avoid face scatter)
+0.008426
+08:43:28 exp 9 DISCARD 0.008426 vs 0.008198 (6s): structured-grid Taubin: precompute loft adjacency once (avoid face scatter)
+08:43:28 exp 9 DISCARD 0.008426 vs 0.008198 (6s): structured-grid Taubin: precompute loft adjacency once (avoid face scatter)
+08:43:28 [9/99] exp 10: skip CDT winding normalisation (rings already CCW from _ring_vertices)
+08:43:28 [9/99] exp 10: skip CDT winding normalisation (rings already CCW from _ring_vertices)
+0.008360
+08:43:33 exp 10 DISCARD 0.008360 vs 0.008198 (6s): skip CDT winding normalisation (rings already CCW from _ring_vertices)
+08:43:33 exp 10 DISCARD 0.008360 vs 0.008198 (6s): skip CDT winding normalisation (rings already CCW from _ring_vertices)
+08:43:33 [10/99] exp 11: replace arccos with 1-dot proxy in curvature resample (avoid trig)
+08:43:33 [10/99] exp 11: replace arccos with 1-dot proxy in curvature resample (avoid trig)
+0.008354
+08:43:39 exp 11 DISCARD 0.008354 vs 0.008198 (6s): replace arccos with 1-dot proxy in curvature resample (avoid trig)
+08:43:39 exp 11 DISCARD 0.008354 vs 0.008198 (6s): replace arccos with 1-dot proxy in curvature resample (avoid trig)
+08:43:39 [11/99] exp 12: FFT-only alignment for all ring sizes (drop exhaustive n<=128 branch)
+08:43:39 [11/99] exp 12: FFT-only alignment for all ring sizes (drop exhaustive n<=128 branch)
+0.009215
+08:43:45 exp 12 DISCARD 0.009215 vs 0.008198 (6s): FFT-only alignment for all ring sizes (drop exhaustive n<=128 branch)
+08:43:45 exp 12 DISCARD 0.009215 vs 0.008198 (6s): FFT-only alignment for all ring sizes (drop exhaustive n<=128 branch)
+08:43:45 [12/99] exp 13: numba FFT-refine window (zero-alloc vectorised-cand replacement)
+08:43:45 [12/99] exp 13: numba FFT-refine window (zero-alloc vectorised-cand replacement)
+0.008112
+08:43:51 exp 13 KEEP 0.008112 < 0.008198 (5s): numba FFT-refine window (zero-alloc vectorised-cand replacement)
+08:43:51 exp 13 KEEP 0.008112 < 0.008198 (5s): numba FFT-refine window (zero-alloc vectorised-cand replacement)
+08:43:51 [13/99] exp 14: earcut-only caps (skip Lawson CDT refinement entirely)
+08:43:51 [13/99] exp 14: earcut-only caps (skip Lawson CDT refinement entirely)
+08:43:51 exp 14 SKIP (patch not found): earcut-only caps (skip Lawson CDT refinement entirely)
+08:43:51 exp 14 SKIP (patch not found): earcut-only caps (skip Lawson CDT refinement entirely)
+08:43:51 [14/99] exp 15: numba vertex normal accumulation (single pass, no per-coord bincount)
+08:43:51 [14/99] exp 15: numba vertex normal accumulation (single pass, no per-coord bincount)
+0.008307
+08:43:56 exp 15 DISCARD 0.008307 vs 0.008112 (5s): numba vertex normal accumulation (single pass, no per-coord bincount)
+08:43:56 exp 15 DISCARD 0.008307 vs 0.008112 (5s): numba vertex normal accumulation (single pass, no per-coord bincount)
+08:43:56 [15/99] exp 16: sort-reduce vertex normals (argsort + diff-based segment sum)
+08:43:56 [15/99] exp 16: sort-reduce vertex normals (argsort + diff-based segment sum)
+08:43:56 exp 16 SKIP (patch not found): sort-reduce vertex normals (argsort + diff-based segment sum)
+08:43:56 exp 16 SKIP (patch not found): sort-reduce vertex normals (argsort + diff-based segment sum)
+08:43:56 [16/99] exp 17: pre-allocate combined position/normal buffer in build_all_cells_mesh
+08:43:56 [16/99] exp 17: pre-allocate combined position/normal buffer in build_all_cells_mesh
+0.008298
+08:44:02 exp 17 DISCARD 0.008298 vs 0.008112 (6s): pre-allocate combined position/normal buffer in build_all_cells_mesh
+08:44:02 exp 17 DISCARD 0.008298 vs 0.008112 (6s): pre-allocate combined position/normal buffer in build_all_cells_mesh
+08:44:02 [17/99] exp 18: cache shapely Polygon/MultiPolygon lookups at module level
+08:44:02 [17/99] exp 18: cache shapely Polygon/MultiPolygon lookups at module level
+08:44:02 exp 18 SKIP (patch not found): cache shapely Polygon/MultiPolygon lookups at module level
+08:44:02 exp 18 SKIP (patch not found): cache shapely Polygon/MultiPolygon lookups at module level
+08:44:02 [18/99] exp 19: cache shapely orient at module level
+08:44:02 [18/99] exp 19: cache shapely orient at module level
+0.008250
+08:44:08 exp 19 DISCARD 0.008250 vs 0.008112 (6s): cache shapely orient at module level
+08:44:08 exp 19 DISCARD 0.008250 vs 0.008112 (6s): cache shapely orient at module level
+08:44:08 [19/99] exp 20: lazy orient: skip shapely orient when ring already CCW
+08:44:08 [19/99] exp 20: lazy orient: skip shapely orient when ring already CCW
+08:44:08 exp 20 SKIP (patch not found): lazy orient: skip shapely orient when ring already CCW
+08:44:08 exp 20 SKIP (patch not found): lazy orient: skip shapely orient when ring already CCW
+08:44:08 [20/99] exp 21: inline scoring during ring extraction (avoid second pass for turning angles)
+08:44:08 [20/99] exp 21: inline scoring during ring extraction (avoid second pass for turning angles)
+0.008305
+08:44:13 exp 21 DISCARD 0.008305 vs 0.008112 (6s): inline scoring during ring extraction (avoid second pass for turning angles)
+08:44:13 exp 21 DISCARD 0.008305 vs 0.008112 (6s): inline scoring during ring extraction (avoid second pass for turning angles)
+08:44:13 [21/99] exp 22: skip sort in _collect_rings_for_cell when ZIndex already monotone
+08:44:13 [21/99] exp 22: skip sort in _collect_rings_for_cell when ZIndex already monotone
+0.008285
+08:44:19 exp 22 DISCARD 0.008285 vs 0.008112 (6s): skip sort in _collect_rings_for_cell when ZIndex already monotone
+08:44:19 exp 22 DISCARD 0.008285 vs 0.008112 (6s): skip sort in _collect_rings_for_cell when ZIndex already monotone
+08:44:19 [22/99] exp 23: np.diff for arc segment lengths in _arc_resample_closed
+08:44:19 [22/99] exp 23: np.diff for arc segment lengths in _arc_resample_closed
+0.008127
+08:44:24 exp 23 DISCARD 0.008127 vs 0.008112 (5s): np.diff for arc segment lengths in _arc_resample_closed
+08:44:24 exp 23 DISCARD 0.008127 vs 0.008112 (5s): np.diff for arc segment lengths in _arc_resample_closed
+08:44:24 [23/99] exp 24: avoid np.vstack in _arc_resample_closed (use np.empty + direct write)
+08:44:24 [23/99] exp 24: avoid np.vstack in _arc_resample_closed (use np.empty + direct write)
+08:44:24 exp 24 SKIP (patch not found): avoid np.vstack in _arc_resample_closed (use np.empty + direct write)
+08:44:24 exp 24 SKIP (patch not found): avoid np.vstack in _arc_resample_closed (use np.empty + direct write)
+08:44:24 [24/99] exp 25: avoid np.stack in _arc_resample_closed (write directly into output)
+08:44:24 [24/99] exp 25: avoid np.stack in _arc_resample_closed (write directly into output)
+0.008215
+08:44:30 exp 25 DISCARD 0.008215 vs 0.008112 (6s): avoid np.stack in _arc_resample_closed (write directly into output)
+08:44:30 exp 25 DISCARD 0.008215 vs 0.008112 (6s): avoid np.stack in _arc_resample_closed (write directly into output)
+08:44:30 [25/99] exp 26: replace np.roll with direct index in curvature_resample
+08:44:30 [25/99] exp 26: replace np.roll with direct index in curvature_resample
+0.008299
+08:44:36 exp 26 DISCARD 0.008299 vs 0.008112 (6s): replace np.roll with direct index in curvature_resample
+08:44:36 exp 26 DISCARD 0.008299 vs 0.008112 (6s): replace np.roll with direct index in curvature_resample
+08:44:36 [26/99] exp 27: fuse curvature edge-weight ops (reduce temporaries)
+08:44:36 [26/99] exp 27: fuse curvature edge-weight ops (reduce temporaries)
+0.008245
+08:44:41 exp 27 DISCARD 0.008245 vs 0.008112 (6s): fuse curvature edge-weight ops (reduce temporaries)
+08:44:41 exp 27 DISCARD 0.008245 vs 0.008112 (6s): fuse curvature edge-weight ops (reduce temporaries)
+08:44:41 [27/99] exp 28: use np.searchsorted with clip=False in curvature resample interpolation
+08:44:41 [27/99] exp 28: use np.searchsorted with clip=False in curvature resample interpolation
+0.008403
+08:44:47 exp 28 DISCARD 0.008403 vs 0.008112 (6s): use np.searchsorted with clip=False in curvature resample interpolation
+08:44:47 exp 28 DISCARD 0.008403 vs 0.008112 (6s): use np.searchsorted with clip=False in curvature resample interpolation
+08:44:47 [28/99] exp 29: downcast ring to float32 inside curvature_resample (halve bandwidth)
+08:44:47 [28/99] exp 29: downcast ring to float32 inside curvature_resample (halve bandwidth)
+0.008291
+08:44:53 exp 29 DISCARD 0.008291 vs 0.008112 (6s): downcast ring to float32 inside curvature_resample (halve bandwidth)
+08:44:53 exp 29 DISCARD 0.008291 vs 0.008112 (6s): downcast ring to float32 inside curvature_resample (halve bandwidth)
+08:44:53 [29/99] exp 30: short-circuit adaptive ring sizing when all cells have identical score
+08:44:53 [29/99] exp 30: short-circuit adaptive ring sizing when all cells have identical score
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+08:44:56 exp 30 CRASH (3s): short-circuit adaptive ring sizing when all cells have identical score
+08:44:56 exp 30 CRASH (3s): short-circuit adaptive ring sizing when all cells have identical score
+08:44:56 [30/99] exp 31: replace np.repeat for Z assignment with broadcast fill
+08:44:56 [30/99] exp 31: replace np.repeat for Z assignment with broadcast fill
+0.008540
+08:45:01 exp 31 DISCARD 0.008540 vs 0.008112 (6s): replace np.repeat for Z assignment with broadcast fill
+08:45:01 exp 31 DISCARD 0.008540 vs 0.008112 (6s): replace np.repeat for Z assignment with broadcast fill
+08:45:01 [31/99] exp 32: skip redundant int64 cast in _compute_vertex_normals
+08:45:01 [31/99] exp 32: skip redundant int64 cast in _compute_vertex_normals
+0.008120
+08:45:07 exp 32 DISCARD 0.008120 vs 0.008112 (5s): skip redundant int64 cast in _compute_vertex_normals
+08:45:07 exp 32 DISCARD 0.008120 vs 0.008112 (5s): skip redundant int64 cast in _compute_vertex_normals
+08:45:07 [32/99] exp 33: replace np.cross with explicit 3D cross formula (skip dispatch overhead)
+08:45:07 [32/99] exp 33: replace np.cross with explicit 3D cross formula (skip dispatch overhead)
+0.008230
+08:45:12 exp 33 DISCARD 0.008230 vs 0.008112 (5s): replace np.cross with explicit 3D cross formula (skip dispatch overhead)
+08:45:12 exp 33 DISCARD 0.008230 vs 0.008112 (5s): replace np.cross with explicit 3D cross formula (skip dispatch overhead)
+08:45:12 [33/99] exp 34: compute vertex normals in float32 (skip float64 promotion)
+08:45:12 [33/99] exp 34: compute vertex normals in float32 (skip float64 promotion)
+0.008391
+08:45:18 exp 34 DISCARD 0.008391 vs 0.008112 (6s): compute vertex normals in float32 (skip float64 promotion)
+08:45:18 exp 34 DISCARD 0.008391 vs 0.008112 (6s): compute vertex normals in float32 (skip float64 promotion)
+08:45:18 [34/99] exp 35: cache z_arr float32 to avoid re-cast inside smooth loop
+08:45:18 [34/99] exp 35: cache z_arr float32 to avoid re-cast inside smooth loop
+08:45:18 exp 35 SKIP (patch not found): cache z_arr float32 to avoid re-cast inside smooth loop
+08:45:18 exp 35 SKIP (patch not found): cache z_arr float32 to avoid re-cast inside smooth loop
+08:45:18 [35/99] exp 36: remove dead DP correspondence strip code (never called in current pipeline)
+08:45:18 [35/99] exp 36: remove dead DP correspondence strip code (never called in current pipeline)
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+08:45:19 exp 36 CRASH (1s): remove dead DP correspondence strip code (never called in current pipeline)
+08:45:19 exp 36 CRASH (1s): remove dead DP correspondence strip code (never called in current pipeline)
+08:45:19 [36/99] exp 37: replace np.vstack(cap_dup) with np.concatenate (single copy)
+08:45:19 [36/99] exp 37: replace np.vstack(cap_dup) with np.concatenate (single copy)
+0.008295
+08:45:25 exp 37 DISCARD 0.008295 vs 0.008112 (6s): replace np.vstack(cap_dup) with np.concatenate (single copy)
+08:45:25 exp 37 DISCARD 0.008295 vs 0.008112 (6s): replace np.vstack(cap_dup) with np.concatenate (single copy)
+08:45:25 [37/99] exp 38: remove .copy() from cap_dup ring slices (avoid redundant alloc)
+08:45:25 [37/99] exp 38: remove .copy() from cap_dup ring slices (avoid redundant alloc)
+08:45:25 exp 38 SKIP (patch not found): remove .copy() from cap_dup ring slices (avoid redundant alloc)
+08:45:25 exp 38 SKIP (patch not found): remove .copy() from cap_dup ring slices (avoid redundant alloc)
+08:45:25 [38/99] exp 39: replace _orient_cap_tris with direct CCW-flip for bottom cap only
+08:45:25 [38/99] exp 39: replace _orient_cap_tris with direct CCW-flip for bottom cap only
+0.008231
+08:45:31 exp 39 DISCARD 0.008231 vs 0.008112 (6s): replace _orient_cap_tris with direct CCW-flip for bottom cap only
+08:45:31 exp 39 DISCARD 0.008231 vs 0.008112 (6s): replace _orient_cap_tris with direct CCW-flip for bottom cap only
+08:45:31 [39/99] exp 40: use np.empty for final float32 normal cast (skip zero-init)
+08:45:31 [39/99] exp 40: use np.empty for final float32 normal cast (skip zero-init)
+0.008484
+08:45:36 exp 40 DISCARD 0.008484 vs 0.008112 (6s): use np.empty for final float32 normal cast (skip zero-init)
+08:45:36 exp 40 DISCARD 0.008484 vs 0.008112 (6s): use np.empty for final float32 normal cast (skip zero-init)
+08:45:36 [40/99] exp 41: fuse normals divide + cast via direct float32 output array
+08:45:36 [40/99] exp 41: fuse normals divide + cast via direct float32 output array
+08:45:36 exp 41 SKIP (patch not found): fuse normals divide + cast via direct float32 output array
+08:45:36 exp 41 SKIP (patch not found): fuse normals divide + cast via direct float32 output array
+08:45:36 [41/99] exp 42: inline ring length check in _unify_ring_count (skip all-equal fast path)
+08:45:36 [41/99] exp 42: inline ring length check in _unify_ring_count (skip all-equal fast path)
+0.008221
+08:45:42 exp 42 DISCARD 0.008221 vs 0.008112 (6s): inline ring length check in _unify_ring_count (skip all-equal fast path)
+08:45:42 exp 42 DISCARD 0.008221 vs 0.008112 (6s): inline ring length check in _unify_ring_count (skip all-equal fast path)
+08:45:42 [42/99] exp 43: cache rfft(prev) between alignment calls in loft loop
+08:45:42 [42/99] exp 43: cache rfft(prev) between alignment calls in loft loop
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+08:45:43 exp 43 CRASH (1s): cache rfft(prev) between alignment calls in loft loop
+08:45:43 exp 43 CRASH (1s): cache rfft(prev) between alignment calls in loft loop
+08:45:43 [43/99] exp 44: early-return for equal-N rings before Numba exhaustive alignment
+08:45:43 [43/99] exp 44: early-return for equal-N rings before Numba exhaustive alignment
+0.008382
+08:45:49 exp 44 DISCARD 0.008382 vs 0.008112 (6s): early-return for equal-N rings before Numba exhaustive alignment
+08:45:49 exp 44 DISCARD 0.008382 vs 0.008112 (6s): early-return for equal-N rings before Numba exhaustive alignment
+08:45:49 [44/99] exp 45: use np.reshape view for side_positions XY fill (avoid extra reshape copy)
+08:45:49 [44/99] exp 45: use np.reshape view for side_positions XY fill (avoid extra reshape copy)
+08:45:49 exp 45 SKIP (patch not found): use np.reshape view for side_positions XY fill (avoid extra reshape copy)
+08:45:49 exp 45 SKIP (patch not found): use np.reshape view for side_positions XY fill (avoid extra reshape copy)
+08:45:49 [45/99] exp 46: avoid per-ring max() call when ring_vertex_target provided
+08:45:49 [45/99] exp 46: avoid per-ring max() call when ring_vertex_target provided
+0.008437
+08:45:55 exp 46 DISCARD 0.008437 vs 0.008112 (6s): avoid per-ring max() call when ring_vertex_target provided
+08:45:55 exp 46 DISCARD 0.008437 vs 0.008112 (6s): avoid per-ring max() call when ring_vertex_target provided
+08:45:55 [46/99] exp 47: numba structured loft Taubin (zero Python loops for smooth step)
+08:45:55 [46/99] exp 47: numba structured loft Taubin (zero Python loops for smooth step)
+08:45:55 exp 47 SKIP (patch not found): numba structured loft Taubin (zero Python loops for smooth step)
+08:45:55 exp 47 SKIP (patch not found): numba structured loft Taubin (zero Python loops for smooth step)
+08:45:55 [47/99] exp 48: remove numpy Taubin fallback branch (use numba-only loft Taubin)
+08:45:55 [47/99] exp 48: remove numpy Taubin fallback branch (use numba-only loft Taubin)
+08:45:55 exp 48 SKIP (patch not found): remove numpy Taubin fallback branch (use numba-only loft Taubin)
+08:45:55 exp 48 SKIP (patch not found): remove numpy Taubin fallback branch (use numba-only loft Taubin)
+08:45:55 [48/99] exp 49: fuse Z re-lock into numba Taubin kernel (single pass over verts)
+08:45:55 [48/99] exp 49: fuse Z re-lock into numba Taubin kernel (single pass over verts)
+08:45:55 exp 49 SKIP (patch not found): fuse Z re-lock into numba Taubin kernel (single pass over verts)
+08:45:55 exp 49 SKIP (patch not found): fuse Z re-lock into numba Taubin kernel (single pass over verts)
+08:45:55 [49/99] exp 50: fuse per-slice XY centroid restore into numba Taubin kernel
+08:45:55 [49/99] exp 50: fuse per-slice XY centroid restore into numba Taubin kernel
+08:45:55 exp 50 SKIP (patch not found): fuse per-slice XY centroid restore into numba Taubin kernel
+08:45:55 exp 50 SKIP (patch not found): fuse per-slice XY centroid restore into numba Taubin kernel
+08:45:55 [50/99] exp 51: remove unused trimesh import (replaced by numba Taubin)
+08:45:55 [50/99] exp 51: remove unused trimesh import (replaced by numba Taubin)
+08:45:55 exp 51 SKIP (patch not found): remove unused trimesh import (replaced by numba Taubin)
+08:45:55 exp 51 SKIP (patch not found): remove unused trimesh import (replaced by numba Taubin)
+08:45:55 [51/99] exp 52: early-exit in numba exhaustive alignment when cost reaches zero
+08:45:55 [51/99] exp 52: early-exit in numba exhaustive alignment when cost reaches zero
+0.008191
+08:46:01 exp 52 DISCARD 0.008191 vs 0.008112 (6s): early-exit in numba exhaustive alignment when cost reaches zero
+08:46:01 exp 52 DISCARD 0.008191 vs 0.008112 (6s): early-exit in numba exhaustive alignment when cost reaches zero
+08:46:01 [52/99] exp 53: vectorise _largest_polygon over geometry array with np.frompyfunc
+08:46:01 [52/99] exp 53: vectorise _largest_polygon over geometry array with np.frompyfunc
+08:46:01 exp 53 SKIP (patch not found): vectorise _largest_polygon over geometry array with np.frompyfunc
+08:46:01 exp 53 SKIP (patch not found): vectorise _largest_polygon over geometry array with np.frompyfunc
+08:46:01 [53/99] exp 54: use shapely.get_coordinates to batch-extract exterior ring coords
+08:46:01 [53/99] exp 54: use shapely.get_coordinates to batch-extract exterior ring coords
+08:46:01 exp 54 SKIP (patch not found): use shapely.get_coordinates to batch-extract exterior ring coords
+08:46:01 exp 54 SKIP (patch not found): use shapely.get_coordinates to batch-extract exterior ring coords
+08:46:01 [54/99] exp 55: skip ascontiguousarray in _cap_flat when stack output is already C-order
+08:46:01 [54/99] exp 55: skip ascontiguousarray in _cap_flat when stack output is already C-order
+0.008369
+08:46:06 exp 55 DISCARD 0.008369 vs 0.008112 (6s): skip ascontiguousarray in _cap_flat when stack output is already C-order
+08:46:06 exp 55 DISCARD 0.008369 vs 0.008112 (6s): skip ascontiguousarray in _cap_flat when stack output is already C-order
+08:46:06 [55/99] exp 56: vectorise cell_color computation outside per-cell loop
+08:46:06 [55/99] exp 56: vectorise cell_color computation outside per-cell loop
+08:46:06 exp 56 SKIP (patch not found): vectorise cell_color computation outside per-cell loop
+08:46:06 exp 56 SKIP (patch not found): vectorise cell_color computation outside per-cell loop
+08:46:06 [56/99] exp 57: vectorise scene-bbox min/max via np.asarray (avoid repeated scalar float())
+08:46:06 [56/99] exp 57: vectorise scene-bbox min/max via np.asarray (avoid repeated scalar float())
+0.008421
+08:46:12 exp 57 DISCARD 0.008421 vs 0.008112 (6s): vectorise scene-bbox min/max via np.asarray (avoid repeated scalar float())
+08:46:12 exp 57 DISCARD 0.008421 vs 0.008112 (6s): vectorise scene-bbox min/max via np.asarray (avoid repeated scalar float())
+08:46:12 [57/99] exp 58: return ndarrays from build_all_cells_mesh instead of tolist() conversion
+08:46:12 [57/99] exp 58: return ndarrays from build_all_cells_mesh instead of tolist() conversion
+0.008579
+08:46:18 exp 58 DISCARD 0.008579 vs 0.008112 (6s): return ndarrays from build_all_cells_mesh instead of tolist() conversion
+08:46:18 exp 58 DISCARD 0.008579 vs 0.008112 (6s): return ndarrays from build_all_cells_mesh instead of tolist() conversion
+08:46:18 [58/99] exp 59: pass ndarrays directly to GLB writer (remove redundant list conversion in _tile_
+08:46:18 [58/99] exp 59: pass ndarrays directly to GLB writer (remove redundant list conversion in _tile_
+08:46:18 exp 59 SKIP (patch not found): pass ndarrays directly to GLB writer (remove redundant list conversion in _tile_export)
+08:46:18 exp 59 SKIP (patch not found): pass ndarrays directly to GLB writer (remove redundant list conversion in _tile_export)
+08:46:18 [59/99] exp 60: replace z_arr_f32.repeat(n_ring) with np.repeat (same but explicit axis)
+08:46:18 [59/99] exp 60: replace z_arr_f32.repeat(n_ring) with np.repeat (same but explicit axis)
+08:46:18 exp 60 SKIP (patch not found): replace z_arr_f32.repeat(n_ring) with np.repeat (same but explicit axis)
+08:46:18 exp 60 SKIP (patch not found): replace z_arr_f32.repeat(n_ring) with np.repeat (same but explicit axis)
+08:46:18 [60/99] exp 61: skip _arc_resample_closed fallback for n<n_target — use curvature path for all u
+08:46:18 [60/99] exp 61: skip _arc_resample_closed fallback for n<n_target — use curvature path for all u
+0.009212
+08:46:24 exp 61 DISCARD 0.009212 vs 0.008112 (6s): skip _arc_resample_closed fallback for n<n_target — use curvature path for all upsample
+08:46:24 exp 61 DISCARD 0.009212 vs 0.008112 (6s): skip _arc_resample_closed fallback for n<n_target — use curvature path for all upsample
+08:46:24 [61/99] exp 62: numba pairwise align loop over all slices in one call
+08:46:24 [61/99] exp 62: numba pairwise align loop over all slices in one call
+08:46:24 exp 62 SKIP (patch not found): numba pairwise align loop over all slices in one call
+08:46:24 exp 62 SKIP (patch not found): numba pairwise align loop over all slices in one call
+08:46:24 [62/99] exp 63: build side_positions directly from aligned stack_raw (skip second np.stack)
+08:46:24 [62/99] exp 63: build side_positions directly from aligned stack_raw (skip second np.stack)
+08:46:24 exp 63 SKIP (patch not found): build side_positions directly from aligned stack_raw (skip second np.stack)
+08:46:24 exp 63 SKIP (patch not found): build side_positions directly from aligned stack_raw (skip second np.stack)
+08:46:24 [63/99] exp 64: hoist np.arange(common_n) outside alignment loop
+08:46:24 [63/99] exp 64: hoist np.arange(common_n) outside alignment loop
+08:46:24 exp 64 SKIP (patch not found): hoist np.arange(common_n) outside alignment loop
+08:46:24 exp 64 SKIP (patch not found): hoist np.arange(common_n) outside alignment loop
+08:46:24 [64/99] exp 65: replace (idx+k)%n modulo in alignment with conditional (branch-free)
+08:46:24 [64/99] exp 65: replace (idx+k)%n modulo in alignment with conditional (branch-free)
+08:46:24 exp 65 SKIP (patch not found): replace (idx+k)%n modulo in alignment with conditional (branch-free)
+08:46:24 exp 65 SKIP (patch not found): replace (idx+k)%n modulo in alignment with conditional (branch-free)
+08:46:24 [65/99] exp 66: return rings directly (no list copy) in _unify_ring_count fast path
+08:46:24 [65/99] exp 66: return rings directly (no list copy) in _unify_ring_count fast path
+08:46:24 exp 66 SKIP (patch not found): return rings directly (no list copy) in _unify_ring_count fast path
+08:46:24 exp 66 SKIP (patch not found): return rings directly (no list copy) in _unify_ring_count fast path
+08:46:24 [66/99] exp 67: use pre-allocated array in _unify_ring_count instead of list comprehension
+08:46:24 [66/99] exp 67: use pre-allocated array in _unify_ring_count instead of list comprehension
+08:46:24 exp 67 SKIP (patch not found): use pre-allocated array in _unify_ring_count instead of list comprehension
+08:46:24 exp 67 SKIP (patch not found): use pre-allocated array in _unify_ring_count instead of list comprehension
+08:46:24 [67/99] exp 68: numba cumsum + searchsorted in curvature_resample inner interp
+08:46:24 [67/99] exp 68: numba cumsum + searchsorted in curvature_resample inner interp
+0.008586
+08:46:30 exp 68 DISCARD 0.008586 vs 0.008112 (6s): numba cumsum + searchsorted in curvature_resample inner interp
+08:46:30 exp 68 DISCARD 0.008586 vs 0.008112 (6s): numba cumsum + searchsorted in curvature_resample inner interp
+08:46:30 [68/99] exp 69: replace double np.hypot in curvature_resample with fused norm formula
+08:46:30 [68/99] exp 69: replace double np.hypot in curvature_resample with fused norm formula
+0.008444
+08:46:36 exp 69 DISCARD 0.008444 vs 0.008112 (6s): replace double np.hypot in curvature_resample with fused norm formula
+08:46:36 exp 69 DISCARD 0.008444 vs 0.008112 (6s): replace double np.hypot in curvature_resample with fused norm formula
+08:46:36 [69/99] exp 70: remove keepdims in normals sqlen (use explicit reshape instead)
+08:46:36 [69/99] exp 70: remove keepdims in normals sqlen (use explicit reshape instead)
+0.008171
+08:46:41 exp 70 DISCARD 0.008171 vs 0.008112 (5s): remove keepdims in normals sqlen (use explicit reshape instead)
+08:46:41 exp 70 DISCARD 0.008171 vs 0.008112 (5s): remove keepdims in normals sqlen (use explicit reshape instead)
+08:46:41 [70/99] exp 71: np.linalg.norm axis=1 for normal lengths (single BLAS call)
+08:46:41 [70/99] exp 71: np.linalg.norm axis=1 for normal lengths (single BLAS call)
+08:46:41 exp 71 SKIP (patch not found): np.linalg.norm axis=1 for normal lengths (single BLAS call)
+08:46:41 exp 71 SKIP (patch not found): np.linalg.norm axis=1 for normal lengths (single BLAS call)
+08:46:41 [71/99] exp 72: use np.take for face-vertex fetch in normals (explicit gather)
+08:46:41 [71/99] exp 72: use np.take for face-vertex fetch in normals (explicit gather)
+08:46:41 exp 72 SKIP (patch not found): use np.take for face-vertex fetch in normals (explicit gather)
+08:46:41 exp 72 SKIP (patch not found): use np.take for face-vertex fetch in normals (explicit gather)
+08:46:41 [72/99] exp 73: use dict comprehension for groupby (avoid pandas groupby overhead)
+08:46:41 [72/99] exp 73: use dict comprehension for groupby (avoid pandas groupby overhead)
+0.008752
+08:46:47 exp 73 DISCARD 0.008752 vs 0.008112 (6s): use dict comprehension for groupby (avoid pandas groupby overhead)
+08:46:47 exp 73 DISCARD 0.008752 vs 0.008112 (6s): use dict comprehension for groupby (avoid pandas groupby overhead)
+08:46:47 [73/99] exp 74: use ndarray.fill pattern for Z column (avoid broadcast overhead)
+08:46:47 [73/99] exp 74: use ndarray.fill pattern for Z column (avoid broadcast overhead)
+08:46:47 exp 74 SKIP (patch not found): use ndarray.fill pattern for Z column (avoid broadcast overhead)
+08:46:47 exp 74 SKIP (patch not found): use ndarray.fill pattern for Z column (avoid broadcast overhead)
+08:46:47 [74/99] exp 75: XY-only Taubin: skip Z coordinate in loft smooth kernel (Z locked anyway)
+08:46:47 [74/99] exp 75: XY-only Taubin: skip Z coordinate in loft smooth kernel (Z locked anyway)
+08:46:47 exp 75 SKIP (patch not found): XY-only Taubin: skip Z coordinate in loft smooth kernel (Z locked anyway)
+08:46:47 exp 75 SKIP (patch not found): XY-only Taubin: skip Z coordinate in loft smooth kernel (Z locked anyway)
+08:46:47 [75/99] exp 76: use np.empty_like for side_ref allocation in smooth branch
+08:46:47 [75/99] exp 76: use np.empty_like for side_ref allocation in smooth branch
+0.008492
+08:46:53 exp 76 DISCARD 0.008492 vs 0.008112 (6s): use np.empty_like for side_ref allocation in smooth branch
+08:46:53 exp 76 DISCARD 0.008492 vs 0.008112 (6s): use np.empty_like for side_ref allocation in smooth branch
+08:46:53 [76/99] exp 77: avoid .astype(np.float32, copy=False) cast on already-float32 positions
+08:46:53 [76/99] exp 77: avoid .astype(np.float32, copy=False) cast on already-float32 positions
+08:46:53 exp 77 SKIP (patch not found): avoid .astype(np.float32, copy=False) cast on already-float32 positions
+08:46:53 exp 77 SKIP (patch not found): avoid .astype(np.float32, copy=False) cast on already-float32 positions
+08:46:53 [77/99] exp 78: use Numba for _cell_max_turning (avoid per-ring Python loop)
+08:46:53 [77/99] exp 78: use Numba for _cell_max_turning (avoid per-ring Python loop)
+0.008509
+08:46:59 exp 78 DISCARD 0.008509 vs 0.008112 (6s): use Numba for _cell_max_turning (avoid per-ring Python loop)
+08:46:59 exp 78 DISCARD 0.008509 vs 0.008112 (6s): use Numba for _cell_max_turning (avoid per-ring Python loop)
+08:46:59 [78/99] exp 79: inline turning score in build_all_cells_mesh (same proxy as _cell_max_turning)
+08:46:59 [78/99] exp 79: inline turning score in build_all_cells_mesh (same proxy as _cell_max_turning)
+08:46:59 exp 79 SKIP (patch not found): inline turning score in build_all_cells_mesh (same proxy as _cell_max_turning)
+08:46:59 exp 79 SKIP (patch not found): inline turning score in build_all_cells_mesh (same proxy as _cell_max_turning)
+08:46:59 [79/99] exp 80: skip angle-step in ring_vertices when ring is already axis-aligned
+08:46:59 [79/99] exp 80: skip angle-step in ring_vertices when ring is already axis-aligned
+0.008613
+08:47:05 exp 80 DISCARD 0.008613 vs 0.008112 (6s): skip angle-step in ring_vertices when ring is already axis-aligned
+08:47:05 exp 80 DISCARD 0.008613 vs 0.008112 (6s): skip angle-step in ring_vertices when ring is already axis-aligned
+08:47:05 [80/99] exp 81: vectorise Shoelace signed-area in _ring_vertices lazy orient
+08:47:05 [80/99] exp 81: vectorise Shoelace signed-area in _ring_vertices lazy orient
+08:47:05 exp 81 SKIP (patch not found): vectorise Shoelace signed-area in _ring_vertices lazy orient
+08:47:05 exp 81 SKIP (patch not found): vectorise Shoelace signed-area in _ring_vertices lazy orient
+08:47:05 [81/99] exp 82: use np.argmax instead of argmin on abs for ring start vertex selection
+08:47:05 [81/99] exp 82: use np.argmax instead of argmin on abs for ring start vertex selection
+08:47:05 exp 82 SKIP (patch not found): use np.argmax instead of argmin on abs for ring start vertex selection
+08:47:05 exp 82 SKIP (patch not found): use np.argmax instead of argmin on abs for ring start vertex selection
+08:47:05 [82/99] exp 83: use np.argmax dot-product alignment: replace rfft on 2-col ring with real dot pr
+08:47:05 [82/99] exp 83: use np.argmax dot-product alignment: replace rfft on 2-col ring with real dot pr
+08:47:05 exp 83 SKIP (patch not found): use np.argmax dot-product alignment: replace rfft on 2-col ring with real dot product
+08:47:05 exp 83 SKIP (patch not found): use np.argmax dot-product alignment: replace rfft on 2-col ring with real dot product
+08:47:05 [83/99] exp 84: replace complex FFT with sum-of-real rfft (avoid complex dtype overhead)
+08:47:05 [83/99] exp 84: replace complex FFT with sum-of-real rfft (avoid complex dtype overhead)
+08:47:05 exp 84 SKIP (patch not found): replace complex FFT with sum-of-real rfft (avoid complex dtype overhead)
+08:47:05 exp 84 SKIP (patch not found): replace complex FFT with sum-of-real rfft (avoid complex dtype overhead)
+08:47:05 [84/99] exp 85: use scipy.fft.rfft for alignment (FFTPACK vs pocketfft benchmark)
+08:47:05 [84/99] exp 85: use scipy.fft.rfft for alignment (FFTPACK vs pocketfft benchmark)
+0.008516
+08:47:11 exp 85 DISCARD 0.008516 vs 0.008112 (6s): use scipy.fft.rfft for alignment (FFTPACK vs pocketfft benchmark)
+08:47:11 exp 85 DISCARD 0.008516 vs 0.008112 (6s): use scipy.fft.rfft for alignment (FFTPACK vs pocketfft benchmark)
+08:47:11 [85/99] exp 86: batch FFT alignment: compute all slice-pair correlations at once
+08:47:11 [85/99] exp 86: batch FFT alignment: compute all slice-pair correlations at once
+08:47:11 exp 86 SKIP (patch not found): batch FFT alignment: compute all slice-pair correlations at once
+08:47:11 exp 86 SKIP (patch not found): batch FFT alignment: compute all slice-pair correlations at once
+08:47:11 [86/99] exp 87: use np.roll in alignment hot-loop (less overhead than fancy index for small n)
+08:47:11 [86/99] exp 87: use np.roll in alignment hot-loop (less overhead than fancy index for small n)
+08:47:11 exp 87 SKIP (patch not found): use np.roll in alignment hot-loop (less overhead than fancy index for small n)
+08:47:11 exp 87 SKIP (patch not found): use np.roll in alignment hot-loop (less overhead than fancy index for small n)
+08:47:11 [87/99] exp 88: use direct slice+concat for ring shift (avoid np.roll call overhead)
+08:47:11 [87/99] exp 88: use direct slice+concat for ring shift (avoid np.roll call overhead)
+08:47:11 exp 88 SKIP (patch not found): use direct slice+concat for ring shift (avoid np.roll call overhead)
+08:47:11 exp 88 SKIP (patch not found): use direct slice+concat for ring shift (avoid np.roll call overhead)
+08:47:11 [88/99] exp 89: use np.linalg.norm for arc seg lengths in _arc_resample_closed
+08:47:11 [88/99] exp 89: use np.linalg.norm for arc seg lengths in _arc_resample_closed
+08:47:11 exp 89 SKIP (patch not found): use np.linalg.norm for arc seg lengths in _arc_resample_closed
+08:47:11 exp 89 SKIP (patch not found): use np.linalg.norm for arc seg lengths in _arc_resample_closed
+08:47:11 [89/99] exp 90: avoid intermediate coords vstack in _arc_resample_closed (wrap index)
+08:47:11 [89/99] exp 90: avoid intermediate coords vstack in _arc_resample_closed (wrap index)
+08:47:11 exp 90 SKIP (patch not found): avoid intermediate coords vstack in _arc_resample_closed (wrap index)
+08:47:11 exp 90 SKIP (patch not found): avoid intermediate coords vstack in _arc_resample_closed (wrap index)
+08:47:11 [90/99] exp 91: inline _arc_resample_closed into _curvature_resample for n<n_target branch
+08:47:11 [90/99] exp 91: inline _arc_resample_closed into _curvature_resample for n<n_target branch
+08:47:11 exp 91 SKIP (patch not found): inline _arc_resample_closed into _curvature_resample for n<n_target branch
+08:47:11 exp 91 SKIP (patch not found): inline _arc_resample_closed into _curvature_resample for n<n_target branch
+08:47:11 [91/99] exp 92: replace np.arange for ring neighbours with direct arithmetic in curvature_resamp
+08:47:11 [91/99] exp 92: replace np.arange for ring neighbours with direct arithmetic in curvature_resamp
+08:47:11 exp 92 SKIP (patch not found): replace np.arange for ring neighbours with direct arithmetic in curvature_resample
+08:47:11 exp 92 SKIP (patch not found): replace np.arange for ring neighbours with direct arithmetic in curvature_resample
+08:47:11 [92/99] exp 93: skip dot-clipping in curvature_resample (turning proxy bounded naturally)
+08:47:11 [92/99] exp 93: skip dot-clipping in curvature_resample (turning proxy bounded naturally)
+08:47:11 exp 93 SKIP (patch not found): skip dot-clipping in curvature_resample (turning proxy bounded naturally)
+08:47:11 exp 93 SKIP (patch not found): skip dot-clipping in curvature_resample (turning proxy bounded naturally)
+08:47:11 [93/99] exp 94: use np.fft.rfftn for 2-column alignment (single 2D FFT instead of two 1D)
+08:47:11 [93/99] exp 94: use np.fft.rfftn for 2-column alignment (single 2D FFT instead of two 1D)
+0.008421
+08:47:17 exp 94 DISCARD 0.008421 vs 0.008112 (6s): use np.fft.rfftn for 2-column alignment (single 2D FFT instead of two 1D)
+08:47:17 exp 94 DISCARD 0.008421 vs 0.008112 (6s): use np.fft.rfftn for 2-column alignment (single 2D FFT instead of two 1D)
+08:47:17 [94/99] exp 95: precompute Lawson adj array shape once per CDT ring size
+08:47:17 [94/99] exp 95: precompute Lawson adj array shape once per CDT ring size
+0.008308
+08:47:22 exp 95 DISCARD 0.008308 vs 0.008112 (6s): precompute Lawson adj array shape once per CDT ring size
+08:47:22 exp 95 DISCARD 0.008308 vs 0.008112 (6s): precompute Lawson adj array shape once per CDT ring size
+08:47:22 [95/99] exp 96: use np.asarray(zs) directly instead of explicit dtype=float64 cast
+08:47:22 [95/99] exp 96: use np.asarray(zs) directly instead of explicit dtype=float64 cast
+08:47:22 exp 96 SKIP (patch not found): use np.asarray(zs) directly instead of explicit dtype=float64 cast
+08:47:22 exp 96 SKIP (patch not found): use np.asarray(zs) directly instead of explicit dtype=float64 cast
+08:47:22 [96/99] exp 97: use np.frompyfunc for cell colour (vectorise HSV → RGB conversion)
+08:47:22 [96/99] exp 97: use np.frompyfunc for cell colour (vectorise HSV → RGB conversion)
+08:47:22 exp 97 SKIP (patch not found): use np.frompyfunc for cell colour (vectorise HSV → RGB conversion)
+08:47:22 exp 97 SKIP (patch not found): use np.frompyfunc for cell colour (vectorise HSV → RGB conversion)
+08:47:22 [97/99] exp 98: use dict.get with default for scores in adaptive ring targets
+08:47:22 [97/99] exp 98: use dict.get with default for scores in adaptive ring targets
+0.008479
+08:47:28 exp 98 DISCARD 0.008479 vs 0.008112 (6s): use dict.get with default for scores in adaptive ring targets
+08:47:28 exp 98 DISCARD 0.008479 vs 0.008112 (6s): use dict.get with default for scores in adaptive ring targets
+08:47:28 [98/99] exp 99: skip groupby sort=False when cell_id already sorted in input gdf
+08:47:28 [98/99] exp 99: skip groupby sort=False when cell_id already sorted in input gdf
+08:47:28 exp 99 SKIP (patch not found): skip groupby sort=False when cell_id already sorted in input gdf
+08:47:28 exp 99 SKIP (patch not found): skip groupby sort=False when cell_id already sorted in input gdf
+08:47:28 [99/99] exp 100: use inplace multiply for Taubin lambda step (reduce array temporaries)
+08:47:28 [99/99] exp 100: use inplace multiply for Taubin lambda step (reduce array temporaries)
+08:47:28 exp 100 SKIP (patch not found): use inplace multiply for Taubin lambda step (reduce array temporaries)
+08:47:28 exp 100 SKIP (patch not found): use inplace multiply for Taubin lambda step (reduce array temporaries)
+08:47:28 === DONE ===
+08:47:28 === DONE ===
+08:47:28 Final best: 0.008112
+08:47:28 Final best: 0.008112
+08:47:28 
+experiment	commit	metric	status	description
+08:47:28 
+experiment	commit	metric	status	description
+08:47:28 baseline=0.059347  best=0.008112  speedup=7.32x
+08:47:28 baseline=0.059347  best=0.008112  speedup=7.32x
+08:47:28 keeps=6 discards=44 skips=47 crashes=3
+08:47:28 keeps=6 discards=44 skips=47 crashes=3
+08:47:28   KEEP: 1	0a7fc8b	0.010967	keep	Numba Lawson passes; vectorized shift cost matrix; unify ring no-op skip; no batch scaffolding
+08:47:28   KEEP: 1	0a7fc8b	0.010967	keep	Numba Lawson passes; vectorized shift cost matrix; unify ring no-op skip; no batch scaffolding
+08:47:28   KEEP: 3	5a6094c	0.009361	keep	numba zero-alloc exhaustive alignment (no (n,n,2) cost matrix per call)
+08:47:28   KEEP: 3	5a6094c	0.009361	keep	numba zero-alloc exhaustive alignment (no (n,n,2) cost matrix per call)
+08:47:28   KEEP: 6	ede56c5	0.008943	keep	np.bincount scatter for vertex normals (replace slow np.add.at)
+08:47:28   KEEP: 6	ede56c5	0.008943	keep	np.bincount scatter for vertex normals (replace slow np.add.at)
+08:47:28   KEEP: 7	13bc945	0.008431	keep	vectorise post-smooth centroid+radius restore (no per-slice Python loop)
+08:47:28   KEEP: 7	13bc945	0.008431	keep	vectorise post-smooth centroid+radius restore (no per-slice Python loop)
+08:47:28   KEEP: 8	f0a8b58	0.008198	keep	inline numpy Laplacian smooth (skip trimesh Trimesh object construction)
+08:47:28   KEEP: 8	f0a8b58	0.008198	keep	inline numpy Laplacian smooth (skip trimesh Trimesh object construction)
+08:47:28   KEEP: 13	2dfb8dc	0.008112	keep	numba FFT-refine window (zero-alloc vectorised-cand replacement)
+08:47:28   KEEP: 13	2dfb8dc	0.008112	keep	numba FFT-refine window (zero-alloc vectorised-cand replacement)
+08:59:30 batch start: 10 exps, start_id=101, best=0.008112
+08:59:30 batch start: 10 exps, start_id=101, best=0.008112
+0.009166
+08:59:37 exp 101 DISCARD 0.009166 vs 0.008112 (7s): structured Taubin: vectorised (S,N,3) roll — replaces 21 np.add.at per step
+08:59:37 exp 101 DISCARD 0.009166 vs 0.008112 (7s): structured Taubin: vectorised (S,N,3) roll — replaces 21 np.add.at per step
+0.008913
+08:59:43 exp 102 DISCARD 0.008913 vs 0.008112 (6s): post-smooth FFT-only alignment (rings barely rotate after Taubin)
+08:59:43 exp 102 DISCARD 0.008913 vs 0.008112 (6s): post-smooth FFT-only alignment (rings barely rotate after Taubin)
+0.008054
+08:59:49 exp 103 KEEP 0.008054 < 0.008112 (5s): skip post-smooth alignment entirely (Taubin moves too little to flip strips)
+08:59:49 exp 103 KEEP 0.008054 < 0.008112 (5s): skip post-smooth alignment entirely (Taubin moves too little to flip strips)
+08:59:49 exp 104 SKIP (patch not found): numba structured Taubin XY+Z on loft grid (zero Python per vertex)
+08:59:49 exp 104 SKIP (patch not found): numba structured Taubin XY+Z on loft grid (zero Python per vertex)
+0.008028
+08:59:54 exp 105 KEEP 0.008028 < 0.008054 (5s): fuse _unify_ring_count + np.stack: single pre-allocated (S,N,2) array
+08:59:54 exp 105 KEEP 0.008028 < 0.008054 (5s): fuse _unify_ring_count + np.stack: single pre-allocated (S,N,2) array
+0.007893
+08:59:59 exp 106 KEEP 0.007893 < 0.008028 (5s): numba curvature_resample: entire resampling kernel in one jit function
+08:59:59 exp 106 KEEP 0.007893 < 0.008028 (5s): numba curvature_resample: entire resampling kernel in one jit function
+0.007126
+09:00:04 exp 107 KEEP 0.007126 < 0.007893 (5s): earcut-only caps: remove Lawson CDT refinement
+09:00:04 exp 107 KEEP 0.007126 < 0.007893 (5s): earcut-only caps: remove Lawson CDT refinement
+09:00:04 exp 108 SKIP (patch not found): compact edge-list Lawson: replace n×n dense adj with O(n) sorted array
+09:00:04 exp 108 SKIP (patch not found): compact edge-list Lawson: replace n×n dense adj with O(n) sorted array
+0.007111
+09:00:09 exp 109 KEEP 0.007111 < 0.007126 (5s): fuse normals bincount: one all_idx + one w concat, 3 bincount calls
+09:00:09 exp 109 KEEP 0.007111 < 0.007126 (5s): fuse normals bincount: one all_idx + one w concat, 3 bincount calls
+0.007101
+09:00:14 exp 110 KEEP 0.007101 < 0.007111 (5s): numba normal accumulation: single Numba scatter over faces (no tile, no bincount
+09:00:14 exp 110 KEEP 0.007101 < 0.007111 (5s): numba normal accumulation: single Numba scatter over faces (no tile, no bincount
+09:00:14 batch done. best now=0.007101
+09:00:14 batch done. best now=0.007101
+09:05:40 batch start: 10 exps, start_id=111, best=0.007101
+09:05:40 batch start: 10 exps, start_id=111, best=0.007101
+0.008410
+09:05:46 exp 111 DISCARD 0.008410 vs 0.007101 (6s): numba structured Taubin: Jacobi double-buffer, zero Python per vertex
+09:05:46 exp 111 DISCARD 0.008410 vs 0.007101 (6s): numba structured Taubin: Jacobi double-buffer, zero Python per vertex
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+09:05:49 exp 112 CRASH (3s): vectorised flat strips array: replace list comp + two np.concatenate calls
+09:05:49 exp 112 CRASH (3s): vectorised flat strips array: replace list comp + two np.concatenate calls
+0.007540
+09:05:55 exp 113 DISCARD 0.007540 vs 0.007101 (5s): use _curvature_weights_nb in _curvature_resample: replace numpy weight loop
+09:05:55 exp 113 DISCARD 0.007540 vs 0.007101 (5s): use _curvature_weights_nb in _curvature_resample: replace numpy weight loop
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+09:05:58 exp 114 CRASH (3s): numba in-place cyclic roll for ring alignment: no temp index array
+09:05:58 exp 114 CRASH (3s): numba in-place cyclic roll for ring alignment: no temp index array
+0.007486
+09:06:03 exp 115 DISCARD 0.007486 vs 0.007101 (5s): avoid np.repeat for Z-fill: use reshape broadcast on z_arr
+09:06:03 exp 115 DISCARD 0.007486 vs 0.007101 (5s): avoid np.repeat for Z-fill: use reshape broadcast on z_arr
+0.007425
+09:06:08 exp 116 DISCARD 0.007425 vs 0.007101 (5s): vectorise Z re-lock in post-smooth: one assignment instead of np.repeat
+09:06:08 exp 116 DISCARD 0.007425 vs 0.007101 (5s): vectorise Z re-lock in post-smooth: one assignment instead of np.repeat
+09:06:08 exp 117 SKIP (patch not found): pre-allocate side_positions XY in-place from stack reshape view
+09:06:08 exp 117 SKIP (patch not found): pre-allocate side_positions XY in-place from stack reshape view
+09:06:08 exp 118 SKIP (patch not found): skip centroid+radius restore after Taubin (just re-lock Z)
+09:06:08 exp 118 SKIP (patch not found): skip centroid+radius restore after Taubin (just re-lock Z)
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+09:06:12 exp 119 CRASH (3s): remove side_ref pre-smooth reference (no longer needed after centroid skip)
+09:06:12 exp 119 CRASH (3s): remove side_ref pre-smooth reference (no longer needed after centroid skip)
+0.007470
+09:06:17 exp 120 DISCARD 0.007470 vs 0.007101 (5s): skip np.ascontiguousarray in cap computation: positions already contiguous
+09:06:17 exp 120 DISCARD 0.007470 vs 0.007101 (5s): skip np.ascontiguousarray in cap computation: positions already contiguous
+09:06:17 batch done. best now=0.007101
+09:06:17 batch done. best now=0.007101
+09:14:43 batch start: 10 exps, start_id=121, best=0.007101
+09:14:43 batch start: 10 exps, start_id=121, best=0.007101
+0.007800
+09:14:49 exp 121 DISCARD 0.007800 vs 0.007101 (6s): skip _cell_max_turning scoring: use uniform ring targets (saves 0.38s)
+09:14:49 exp 121 DISCARD 0.007800 vs 0.007101 (6s): skip _cell_max_turning scoring: use uniform ring targets (saves 0.38s)
+0.006851
+09:14:54 exp 122 KEEP 0.006851 < 0.007101 (5s): remove orient() and arctan2 norm in _ring_vertices: shoelace winding + no norm
+09:14:54 exp 122 KEEP 0.006851 < 0.007101 (5s): remove orient() and arctan2 norm in _ring_vertices: shoelace winding + no norm
+0.006733
+09:14:59 exp 123 KEEP 0.006733 < 0.006851 (5s): numba arc resample: replace _arc_resample_closed numpy ops with single Numba ker
+09:14:59 exp 123 KEEP 0.006733 < 0.006851 (5s): numba arc resample: replace _arc_resample_closed numpy ops with single Numba ker
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+09:15:01 exp 124 CRASH (2s): numba _cell_max_turning: replace np.roll+arccos per ring with Numba O(n) kernel
+09:15:01 exp 124 CRASH (2s): numba _cell_max_turning: replace np.roll+arccos per ring with Numba O(n) kernel
+0.006911
+09:15:06 exp 125 DISCARD 0.006911 vs 0.006733 (5s): avoid np.roll in _ring_vertices winding check: use explicit slice indexing
+09:15:06 exp 125 DISCARD 0.006911 vs 0.006733 (5s): avoid np.roll in _ring_vertices winding check: use explicit slice indexing
+0.006902
+09:15:10 exp 126 DISCARD 0.006902 vs 0.006733 (5s): move shapely imports to module level: avoid per-call import overhead
+09:15:10 exp 126 DISCARD 0.006902 vs 0.006733 (5s): move shapely imports to module level: avoid per-call import overhead
+09:15:10 exp 127 SKIP (patch not found): use shapely.get_coordinates() instead of polygon.exterior.coords → asarray
+09:15:10 exp 127 SKIP (patch not found): use shapely.get_coordinates() instead of polygon.exterior.coords → asarray
+0.006724
+09:15:15 exp 128 KEEP 0.006724 < 0.006733 (5s): replace np.roll in _curvature_resample with slice-based circular shift
+09:15:15 exp 128 KEEP 0.006724 < 0.006733 (5s): replace np.roll in _curvature_resample with slice-based circular shift
+0.006715
+09:15:20 exp 129 KEEP 0.006715 < 0.006724 (5s): ThreadPoolExecutor for cell meshing loop: parallel independent cells
+09:15:20 exp 129 KEEP 0.006715 < 0.006724 (5s): ThreadPoolExecutor for cell meshing loop: parallel independent cells
+09:15:20 exp 130 SKIP (patch not found): move z_arr = np.asarray(zs) before stack build to reuse
+09:15:20 exp 130 SKIP (patch not found): move z_arr = np.asarray(zs) before stack build to reuse
+09:15:20 batch done. best now=0.006715
+09:15:20 batch done. best now=0.006715
+  File "/Users/clarence/polyfiber/scripts/run_experiments.py", line 228
+    \"\"\"Extract ordered 2D rings and Z values for one cell (same rules as ``build_loft_mesh``).\"\"\""""",
+                                                                                                          ^
+SyntaxError: unterminated string literal (detected at line 228)
+09:19:19 batch start: 9 exps, start_id=131, best=0.006715
+09:19:19 batch start: 9 exps, start_id=131, best=0.006715
+0.007281
+09:19:24 exp 131 DISCARD 0.007281 vs 0.006715 (5s): numba _cell_max_turning: module-level math import (fix crash from exp 124)
+09:19:24 exp 131 DISCARD 0.007281 vs 0.006715 (5s): numba _cell_max_turning: module-level math import (fix crash from exp 124)
+0.006889
+09:19:29 exp 132 DISCARD 0.006889 vs 0.006715 (5s): vectorised strips tensor: replace list comp + 2× np.concatenate with broadcast
+09:19:29 exp 132 DISCARD 0.006889 vs 0.006715 (5s): vectorised strips tensor: replace list comp + 2× np.concatenate with broadcast
+09:19:29 exp 133 SKIP: shapely.get_coordinates() in _ring_vertices: bypass WKB coordinate extraction
+09:19:29 exp 133 SKIP: shapely.get_coordinates() in _ring_vertices: bypass WKB coordinate extraction
+09:19:29 exp 134 SKIP: skip is_empty check in _largest_polygon: trust preprocessed geometries
+09:19:29 exp 134 SKIP: skip is_empty check in _largest_polygon: trust preprocessed geometries
+0.006792
+09:19:34 exp 135 DISCARD 0.006792 vs 0.006715 (5s): slice ops for _cell_max_turning rolls: np.empty+slice instead of np.roll
+09:19:34 exp 135 DISCARD 0.006792 vs 0.006715 (5s): slice ops for _cell_max_turning rolls: np.empty+slice instead of np.roll
+09:19:34 exp 136 SKIP: numba full curvature resample kernel: curvature weights + cumsum + interp
+09:19:34 exp 136 SKIP: numba full curvature resample kernel: curvature weights + cumsum + interp
+0.007186
+09:19:39 exp 137 DISCARD 0.007186 vs 0.006715 (5s): avoid np.repeat Z-fill: broadcast z_arr to fill side_positions column
+09:19:39 exp 137 DISCARD 0.007186 vs 0.006715 (5s): avoid np.repeat Z-fill: broadcast z_arr to fill side_positions column
+0.006638
+09:19:43 exp 138 KEEP 0.006638 < 0.006715 (5s): skip per-triangle orient check for caps: flip all bottom / keep all top
+09:19:43 exp 138 KEEP 0.006638 < 0.006715 (5s): skip per-triangle orient check for caps: flip all bottom / keep all top
+0.006595
+09:19:48 exp 139 KEEP 0.006595 < 0.006638 (4s): bincount Taubin: replace 21 np.add.at with 6 np.add.at + 1 cnts bincount
+09:19:48 exp 139 KEEP 0.006595 < 0.006638 (4s): bincount Taubin: replace 21 np.add.at with 6 np.add.at + 1 cnts bincount
+09:19:48 batch done. best now=0.006595
+09:19:48 batch done. best now=0.006595
+09:45:44 batch start: 10 exps, start_id=140, best=0.006595
+0.008134
+09:45:50 exp 140 DISCARD 0.008134 vs 0.006595 (6s): numba warmup at module import: pre-load JIT cache before benchmark timer
+0.006584
+09:45:55 exp 141 KEEP 0.006584 < 0.006595 (5s): shapely.get_coordinates bypass in _ring_vertices: skip WKB serialisation
+0.006253
+09:45:59 exp 142 KEEP 0.006253 < 0.006584 (4s): vectorise quad strips: broadcast all strips in one np op (no fn call loop)
+0.006520
+09:46:04 exp 143 DISCARD 0.006520 vs 0.006253 (4s): precompute arange(common_n) outside alignment loop: avoid 16k allocs
+0.006322
+09:46:08 exp 144 DISCARD 0.006322 vs 0.006253 (4s): gltfpack -cc to -c: standard meshopt compression (skip extreme quantisation)
+0.006404
+09:46:13 exp 145 DISCARD 0.006404 vs 0.006253 (4s): taubin adjacency: ravel all_vi + column fancy-index nb_a/nb_v
+0.006197
+09:46:17 exp 146 KEEP 0.006197 < 0.006253 (4s): pre-alloc taubin sums outside inner loop: skip 2 zeros_like per cell
+0.006239
+09:46:21 exp 147 DISCARD 0.006239 vs 0.006197 (4s): module-level mapbox_earcut import: move earcut load to import time
+0.006785
+09:46:26 exp 148 DISCARD 0.006785 vs 0.006197 (5s): _largest_polygon via get_parts + vectorised area: skip isinstance+is_empty
+0.006610
+09:46:30 exp 149 DISCARD 0.006610 vs 0.006197 (5s): precompute z_arr float32 once: avoid duplicate astype per cell
+09:46:30 batch done. best now=0.006197
+10:14:36 batch start: 11 exps, start_id=150, best=0.006197
+0.007817
+10:14:41 exp 150 DISCARD 0.007817 vs 0.006197 (6s): _cell_max_turning edge+min-dot: no np.roll, scalar math.acos once
+0.006079
+10:14:46 exp 151 KEEP 0.006079 < 0.006197 (4s): _ring_vertices inline shoelace: no np.roll allocation
+0.005348
+10:14:49 exp 152 KEEP 0.005348 < 0.006079 (4s): gdf_cache_key vectorised WKB + repr-bulk id/ZIndex hash
+0.005839
+10:14:54 exp 153 DISCARD 0.005839 vs 0.005348 (4s): batch ring extraction per cell: get_coordinates(array, return_index=True)
+0.005980
+10:14:58 exp 154 DISCARD 0.005980 vs 0.005348 (4s): _largest_polygon: hoist shapely class import to module level
+0.006500
+10:15:03 exp 155 DISCARD 0.006500 vs 0.005348 (5s): vertex normal normalise: np.maximum inplace instead of np.where
+0.006767
+10:15:07 exp 156 DISCARD 0.006767 vs 0.005348 (5s): z_f32 precomputed once + 1D .repeat() instead of np.repeat(2D,n)
+0.006074
+10:15:12 exp 157 DISCARD 0.006074 vs 0.005348 (4s): _arc_resample_closed: skip ascontiguousarray if already contiguous
+0.006010
+10:15:16 exp 158 DISCARD 0.006010 vs 0.005348 (4s): align loop: np.concatenate slice shift vs arange+modulo index
+0.005835
+10:15:20 exp 159 DISCARD 0.005835 vs 0.005348 (4s): taubin: direct column index in bincount, skip nb_coords alloc
+10:15:20 exp 160 SKIP: taubin: inplace laplacian reusing _sums buffer; avoid temp alloc
+10:15:20 batch done. best now=0.005348
+10:40:49 batch start: 8 exps, start_id=161, best=0.005348
+0.007363
+10:40:55 exp 161 DISCARD 0.007363 vs 0.005348 (5s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+0.006128
+10:40:59 exp 162 DISCARD 0.006128 vs 0.005348 (4s): simplify preserve_topology=False: 2.8x faster, same vertex count
+0.005781
+10:41:03 exp 163 DISCARD 0.005781 vs 0.005348 (4s): _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+0.005964
+10:41:08 exp 164 DISCARD 0.005964 vs 0.005348 (4s): align loop: np.concatenate slice shift (retry)
+0.005916
+10:41:12 exp 165 DISCARD 0.005916 vs 0.005348 (4s): _cell_max_turning -> max ring length as fast complexity proxy
+0.005771
+10:41:16 exp 166 DISCARD 0.005771 vs 0.005348 (4s): taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+0.005904
+10:41:20 exp 167 DISCARD 0.005904 vs 0.005348 (4s): vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+0.005907
+10:41:24 exp 168 DISCARD 0.005907 vs 0.005348 (4s): taubin safe_cnt: ravel view instead of concatenate 3 columns
+10:41:24 batch done. best now=0.005348
+10:46:20 batch start: 8 exps, start_id=169, best=0.005348
+0.007351
+0.005436
+10:46:29 exp 169 DISCARD 0.005436 vs 0.005348 (9s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+0.006112
+0.005418
+10:46:38 exp 170 DISCARD 0.005418 vs 0.005348 (8s): simplify preserve_topology=False: 2.8x faster, same vertex count
+0.006050
+0.005130
+10:46:46 exp 171 KEEP 0.005130 < 0.005348 (8s): _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+0.005954
+0.005243
+10:46:54 exp 172 DISCARD 0.005243 vs 0.005130 (8s): align loop: np.concatenate slice shift (retry)
+0.006024
+0.005199
+10:47:02 exp 173 DISCARD 0.005199 vs 0.005130 (8s): _cell_max_turning -> max ring length as fast complexity proxy
+0.005846
+0.005410
+10:47:10 exp 174 DISCARD 0.005410 vs 0.005130 (8s): taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+0.005993
+0.005517
+10:47:18 exp 175 DISCARD 0.005517 vs 0.005130 (8s): vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+0.006008
+0.005127
+10:47:26 exp 176 KEEP 0.005127 < 0.005130 (8s): taubin safe_cnt: ravel view instead of concatenate 3 columns
+10:47:26 batch done. best now=0.005127
+11:14:56 batch start: 8 exps, start_id=177, best=0.005127
+0.007456
+0.005402
+11:15:05 exp 177 DISCARD 0.005402 vs 0.005127 (10s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+0.005687
+0.005032
+11:15:13 exp 178 KEEP 0.005032 < 0.005127 (8s): simplify preserve_topology=False: 2.8x faster, same vertex count
+11:15:13 exp 179 SKIP: _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+0.005714
+0.004922
+11:15:21 exp 180 KEEP 0.004922 < 0.005032 (8s): align loop: np.concatenate slice shift (retry)
+0.005572
+0.004912
+11:15:28 exp 181 KEEP 0.004912 < 0.004922 (7s): _cell_max_turning -> max ring length as fast complexity proxy
+0.005515
+0.004853
+11:15:36 exp 182 KEEP 0.004853 < 0.004912 (7s): taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+0.005825
+0.005080
+11:15:44 exp 183 DISCARD 0.005080 vs 0.004853 (8s): vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+11:15:44 exp 184 SKIP: taubin safe_cnt: ravel view instead of concatenate 3 columns
+11:15:44 batch done. best now=0.004853
+11:15:44 batch start: 8 exps, start_id=185, best=0.004853
+11:15:44 exp 185 SKIP: taubin: Numba face-loop scatter-accumulate, eliminate nb_a/nb_v/bincount
+0.005670
+0.004603
+11:15:51 exp 186 KEEP 0.004603 < 0.004853 (8s): _cell_max_turning: Numba kernel over flattened rings (return min_cos)
+0.005813
+0.004521
+11:15:59 exp 187 KEEP 0.004521 < 0.004603 (8s): vertex normals: all-Numba cross+scatter+normalize kernel
+11:15:59 exp 188 SKIP: simplify preserve_topology=False: retry with stable warmup
+0.006033
+0.004424
+11:16:07 exp 189 KEEP 0.004424 < 0.004521 (8s): post-smooth: Numba fused per-slice centroid+scale correction
+0.005850
+0.004523
+11:16:15 exp 190 DISCARD 0.004523 vs 0.004424 (8s): _collect_rings_for_cell: batch shapely exterior ring extraction
+0.006033
+0.004480
+11:16:23 exp 191 DISCARD 0.004480 vs 0.004424 (8s): _curvature_resample: hoist n<n_target fast-path check to top
+0.005813
+0.004328
+11:16:30 exp 192 KEEP 0.004328 < 0.004424 (7s): _arc_resample_nb: skip closing duplicate via n-=1 in Numba
+11:16:30 batch done. best now=0.004328
+11:39:13 batch start: 8 exps, start_id=193, best=0.004328
+0.006744
+0.004180
+11:39:21 exp 193 KEEP 0.004180 < 0.004328 (8s): _curvature_resample_nb: replace dead _curvature_weights_nb, eliminate numpy resa
+11:39:21 exp 194 SKIP: simplify preserve_topology=False: 2.8x faster, same vertex count
+11:39:21 exp 195 SKIP: _cell_max_turning pre-alloc edges+v_prev; scalar acos(min-dot)
+11:39:21 exp 196 SKIP: align loop: np.concatenate slice shift (retry)
+0.005499
+0.004299
+11:39:29 exp 197 DISCARD 0.004299 vs 0.004180 (7s): _cell_max_turning -> max ring length as fast complexity proxy
+11:39:29 exp 198 SKIP: taubin bincount: direct verts[nb_a,col] weights, no nb_coords alloc
+11:39:29 exp 199 SKIP: vertex normals: float32 pos cross product, avoid pos64 upcast alloc
+11:39:29 exp 200 SKIP: taubin safe_cnt: ravel view instead of concatenate 3 columns
+11:39:29 batch done. best now=0.004180
+11:39:29 batch start: 5 exps, start_id=201, best=0.004180
+0.005526
+0.003940
+11:39:36 exp 201 KEEP 0.003940 < 0.004180 (7s): taubin: Numba face-loop scatter-accumulate, eliminate nb_a/nb_v/bincount
+0.005515
+0.003665
+11:39:43 exp 202 KEEP 0.003665 < 0.003940 (7s): collect_rings: presort+batch shapely+hoist _largest_polygon imports
+0.005166
+0.003746
+11:39:49 exp 203 DISCARD 0.003746 vs 0.003665 (7s): _curvature_resample: inline _arc_resample_nb, skip wrapper overhead
+0.005083
+0.003730
+11:39:56 exp 204 DISCARD 0.003730 vs 0.003665 (7s): meshify: skip _cell_max_turning for cells with <2 rings
+0.005331
+0.003792
+11:40:03 exp 205 DISCARD 0.003792 vs 0.003665 (7s): collect_rings: drop redundant float() coercions on zi*z_scale
+11:40:03 batch done. best now=0.003665
+11:49:08 batch start: 5 exps, start_id=206, best=0.003665
+0.006287
+0.003742
+11:49:16 exp 206 DISCARD 0.003742 vs 0.003665 (8s): collect_rings: Numba shoelace winding check
+0.005321
+0.003709
+11:49:23 exp 207 DISCARD 0.003709 vs 0.003665 (7s): _largest_polygon: skip is_empty for Polygon, handle downstream
+0.005177
+0.003674
+11:49:30 exp 208 DISCARD 0.003674 vs 0.003665 (7s): align rings: Numba fused search+rotate, eliminate Python loop+concat
+11:55:47 batch start: 5 exps, start_id=209, best=0.003665
+0.006171
+0.003792
+11:55:55 exp 209 DISCARD 0.003792 vs 0.003665 (8s): tile_export: compute centroid once per function
+0.005361
+0.003761
+11:56:02 exp 210 DISCARD 0.003761 vs 0.003665 (7s): _curvature_resample: inline _arc_resample_nb (2nd retry)
+0.005463
+0.003848
+11:56:09 exp 211 DISCARD 0.003848 vs 0.003665 (7s): taubin: float32 verts, skip float64 round-trip
+0.005221
+0.003868
+11:56:16 exp 212 DISCARD 0.003868 vs 0.003665 (7s): taubin post: avoid redundant reshape+astype for side_xy
+0.005199
+0.003779
+11:56:23 exp 213 DISCARD 0.003779 vs 0.003665 (7s): meshify: pass presorted gdf directly, avoid extra sort_values check
+11:56:23 batch done. best now=0.003665
+12:03:20 batch start: 4 exps, start_id=214, best=0.003665
+12:03:20 batch start: 4 exps, start_id=214, best=0.003665
+0.005155
+0.004321
+12:03:28 exp 214 DISCARD 0.004321 vs 0.003665 (8s): tile_export: parallelize _loft_cell with ThreadPoolExecutor
+12:03:28 exp 214 DISCARD 0.004321 vs 0.003665 (8s): tile_export: parallelize _loft_cell with ThreadPoolExecutor
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+12:03:31 exp 215 CRASH (3s): tile_export: parallelize ring collection with ThreadPoolExecutor
+12:03:31 exp 215 CRASH (3s): tile_export: parallelize ring collection with ThreadPoolExecutor
+0.004133
+0.004305
+12:03:38 exp 216 DISCARD 0.004305 vs 0.003665 (7s): tile_export: vectorize compute_tile_grid (no iterrows)
+12:03:38 exp 216 DISCARD 0.004305 vs 0.003665 (7s): tile_export: vectorize compute_tile_grid (no iterrows)
+0.004107
+0.003925
+12:03:45 exp 217 DISCARD 0.003925 vs 0.003665 (7s): tile_export: compute centroid once, reuse in auto_tile_size+compute_tile_grid
+12:03:45 exp 217 DISCARD 0.003925 vs 0.003665 (7s): tile_export: compute centroid once, reuse in auto_tile_size+compute_tile_grid
+12:03:45 batch done. best now=0.003665
+12:03:45 batch done. best now=0.003665
+12:19:35 batch start: 4 exps, start_id=218, best=0.003665
+12:19:35 batch start: 4 exps, start_id=218, best=0.003665
+0.004969
+0.003927
+12:19:43 exp 218 DISCARD 0.003927 vs 0.003665 (7s): gltfpack: -c instead of -cc (skip ZSTD extra pass)
+12:19:43 exp 218 DISCARD 0.003927 vs 0.003665 (7s): gltfpack: -c instead of -cc (skip ZSTD extra pass)
+0.003835
+0.003774
+12:19:49 exp 219 DISCARD 0.003774 vs 0.003665 (6s): tile_export: direct GLB binary writer (replace pygltflib)
+12:19:49 exp 219 DISCARD 0.003774 vs 0.003665 (6s): tile_export: direct GLB binary writer (replace pygltflib)
+0.005695
+0.003890
+12:19:56 exp 220 DISCARD 0.003890 vs 0.003665 (7s): mesh_build: vectorize is_empty+isinstance in _collect_rings_for_cell
+12:19:56 exp 220 DISCARD 0.003890 vs 0.003665 (7s): mesh_build: vectorize is_empty+isinstance in _collect_rings_for_cell
+0.005736
+0.004140
+12:20:04 exp 221 DISCARD 0.004140 vs 0.003665 (8s): mesh_build: single-pass Numba bbox (replace 2x ufunc.reduce)
+12:20:04 exp 221 DISCARD 0.004140 vs 0.003665 (8s): mesh_build: single-pass Numba bbox (replace 2x ufunc.reduce)
+12:20:04 batch done. best now=0.003665
+12:20:04 batch done. best now=0.003665
+12:25:48 batch start: 3 exps, start_id=222, best=0.003665
+12:25:48 batch start: 3 exps, start_id=222, best=0.003665
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+12:25:54 exp 222 CRASH (5s): tile_export: parallel tiles (ThreadPoolExecutor + target_tile_mb=10)
+12:25:54 exp 222 CRASH (5s): tile_export: parallel tiles (ThreadPoolExecutor + target_tile_mb=10)
+0.004326
+   Building polyplot @ file:///Users/clarence/polyfiber
+      Built polyplot @ file:///Users/clarence/polyfiber
+Uninstalled 1 package in 1ms
+Installed 1 package in 1ms
+0.003806
+12:26:01 exp 223 DISCARD 0.003806 vs 0.003665 (7s): gltfpack: -c instead of -cc (parallel tile path)
+12:26:01 exp 223 DISCARD 0.003806 vs 0.003665 (7s): gltfpack: -c instead of -cc (parallel tile path)
+0.005595
+0.003921
+12:26:08 exp 224 DISCARD 0.003921 vs 0.003665 (7s): tile_export+mesh: direct GLB writer + vectorize is_empty
+12:26:08 exp 224 DISCARD 0.003921 vs 0.003665 (7s): tile_export+mesh: direct GLB writer + vectorize is_empty
+12:26:08 batch done. best now=0.003665
+12:26:08 batch done. best now=0.003665
+12:36:06 batch start: 5 exps, start_id=225, best=0.003665
+0.005016
+0.002717
+12:36:13 exp 225 KEEP 0.002717 < 0.003665 (7s): tile_export: two-phase parallel gltfpack (target_tile_mb=5)
+0.002976
+0.003218
+12:36:19 exp 226 DISCARD 0.003218 vs 0.002717 (6s): tile_export: target_tile_mb=3 (more parallel gltfpack workers)
+0.002817
+0.002738
+12:36:25 exp 227 DISCARD 0.002738 vs 0.002717 (5s): tile_export: direct GLB binary writer (remove pygltflib)
+0.004503
+0.002799
+12:36:31 exp 228 DISCARD 0.002799 vs 0.002717 (6s): mesh_build: vectorize is_empty in collect_rings (retry on new baseline)
+0.004677
+0.003001
+12:36:38 exp 229 DISCARD 0.003001 vs 0.002717 (7s): gltfpack: -c instead of -cc on new parallel baseline
+12:36:38 batch done. best now=0.002717
+12:50:10 batch start: 5 exps, start_id=230, best=0.002717
+0.003745
+0.002934
+12:50:17 exp 230 DISCARD 0.002934 vs 0.002717 (7s): mesh_build: ring_target default 48→40 (17% vert reduction)
+12:50:17 exp 231 SKIP: mesh_build: ring_target default 40→36 (25% total vert reduction)
+0.005041
+   Building polyplot @ file:///Users/clarence/polyfiber
+      Built polyplot @ file:///Users/clarence/polyfiber
+Uninstalled 1 package in 1ms
+Installed 1 package in 1ms
+0.004713
+12:50:26 exp 232 DISCARD 0.004713 vs 0.002717 (10s): tile_export: bulk array extract (skip groupby + pandas per-cell access)
+0.004258
+0.003116
+12:50:33 exp 233 DISCARD 0.003116 vs 0.002717 (6s): mesh_build: _largest_polygon skip is_empty for Polygon type
+12:50:33 exp 234 SKIP: mesh_build: ring_target default 36→32 (aggressive vert reduction)
+12:50:33 batch done. best now=0.002717
+13:01:57 batch start: 5 exps, start_id=235, best=0.002717
+0.005130
+0.002846
+0.002659
+13:02:07 exp 235 KEEP 0.002659 < 0.002717 (10s): tile_export: inline bulk ring extraction (skip groupby + pandas per-cell)
+0.002868
+0.002559
+0.002905
+13:02:15 exp 236 KEEP 0.002559 < 0.002659 (8s): mesh_build: ring_target default 48→40 (17% vert reduction, retry)
+0.002649
+0.002734
+0.002463
+13:02:23 exp 237 KEEP 0.002463 < 0.002559 (8s): mesh_build: ring_target default 40→36 (25% total vert reduction)
+0.002710
+0.002408
+0.002308
+13:02:30 exp 238 KEEP 0.002308 < 0.002463 (8s): mesh_build: ring_target default 36→32
+13:02:31 exp 239 SKIP: mesh_build: ring_target default 48→36 (direct 25% vert reduction)
+13:02:31 batch done. best now=0.002308
+13:12:22 batch start: 10 exps, start_id=240, best=0.002308
+0.004760
+0.002827
+0.002509
+13:12:33 exp 240 DISCARD 0.002509 vs 0.002308 (11s): mesh_build: ring_target default 32→28
+13:12:33 exp 241 SKIP: mesh_build: ring_target default 28→24
+13:12:33 exp 242 SKIP: mesh_build: ring_target default 24→20
+13:12:33 exp 243 SKIP: mesh_build: ring_target default 20→16
+0.002548
+0.002569
+0.002458
+13:12:41 exp 244 DISCARD 0.002458 vs 0.002308 (8s): mesh_build: ring_target default 32→24 (direct fallback)
+0.004464
+0.002944
+0.002690
+13:12:51 exp 245 DISCARD 0.002690 vs 0.002308 (10s): tile_export: direct binary GLB writer (replace pygltflib)
+0.003909
+0.002820
+0.003491
+13:13:01 exp 246 DISCARD 0.002820 vs 0.002308 (10s): tile_export: compute_tile_grid vectorize iterrows
+0.003817
+0.003288
+0.003173
+13:13:11 exp 247 DISCARD 0.003173 vs 0.002308 (10s): tile_export: auto_tile_size vectorize geometry.apply
+0.002620
+0.002592
+0.002608
+13:13:19 exp 248 DISCARD 0.002592 vs 0.002308 (8s): tile_export: ring_adaptive_min_mul 0.55->0.35
+0.002760
+0.002937
+0.002485
+13:13:28 exp 249 DISCARD 0.002485 vs 0.002308 (9s): tile_export: bulk type_id pre-filter (skip _largest_polygon overhead)
+13:13:28 batch done. best now=0.002308
+13:38:02 batch start: 10 exps, start_id=250, best=0.002308
+0.003867
+0.002468
+0.002175
+13:38:11 exp 250 KEEP 0.002175 < 0.002308 (9s): tile_export: share centroids + inline isinstance + inline tile grid
+0.002256
+0.002177
+0.002188
+13:38:18 exp 251 DISCARD 0.002177 vs 0.002175 (7s): preprocess: copy only needed columns (cell_id, ZIndex, geometry)
+0.002190
+0.002142
+0.002147
+13:38:25 exp 252 KEEP 0.002142 < 0.002175 (7s): cache: batch hash update (single h.update instead of 16813)
+0.002568
+0.002345
+0.002253
+13:38:32 exp 253 DISCARD 0.002253 vs 0.002142 (7s): mesh_build: ring_target 32->28 retry
+13:38:32 exp 254 SKIP: mesh_build: ring_target 28->24 retry
+13:38:32 exp 255 SKIP: mesh_build: ring_target 24->20 retry
+0.002115
+0.002145
+0.002161
+13:38:39 exp 256 DISCARD 0.002145 vs 0.002142 (7s): mesh_build: ring_target 32->24 direct retry
+0.002507
+0.002225
+0.002271
+13:38:47 exp 257 DISCARD 0.002225 vs 0.002142 (7s): tile_export: pre-sort gdf_render by cell_id once
+0.002213
+0.002227
+0.002176
+13:38:54 exp 258 DISCARD 0.002176 vs 0.002142 (7s): tile_export: skip marimo import in batch mode
+0.002472
+0.002270
+0.002548
+13:39:01 exp 259 DISCARD 0.002270 vs 0.002142 (7s): tile_export: concatenate instead of vstack for mesh arrays
+13:39:01 batch done. best now=0.002142
+13:53:20 batch start: 8 exps, start_id=260, best=0.002142
+0.003687
+0.002381
+0.003081
+13:53:29 exp 260 DISCARD 0.002381 vs 0.002142 (9s): tile_export: cache centroid GeoSeries to avoid double computation
+0.003094
+0.002859
+0.003077
+13:53:38 exp 261 DISCARD 0.002859 vs 0.002142 (9s): tile_export: parallel _build_tile_data via ThreadPoolExecutor (nogil Numba)
+0.002521
+0.002426
+0.002235
+13:53:46 exp 262 DISCARD 0.002235 vs 0.002142 (8s): api: smooth_iters=0 (skip Taubin smoothing)
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+error: no MESHIFY_PER_CELL_SECONDS= line in notebook output
+13:53:52 exp 263 CRASH (6s): cache: values.tobytes() instead of repr(tolist()).encode()
+0.002985
+0.002885
+0.002572
+13:54:00 exp 264 DISCARD 0.002572 vs 0.002142 (8s): api: preprocess simplify_tol 0.5->1.0
+13:54:00 exp 265 SKIP: api: preprocess simplify_tol 1.0->2.0
+0.003209
+0.002505
+0.002512
+13:54:09 exp 266 DISCARD 0.002505 vs 0.002142 (8s): cache: get_coordinates tobytes instead of to_wkb
+0.002610
+0.002722
+0.002572
+13:54:17 exp 267 DISCARD 0.002572 vs 0.002142 (8s): tile_export: retry target_tile_mb 5.0->2.5
+13:54:17 batch done. best now=0.002142

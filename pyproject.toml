@@ -17,7 +17,16 @@ dependencies = [
     "numba>=0.65.0",
     "trimesh>=4.11.5",
     "scipy>=1.17.1",
+    "zensical>=0.0.36",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["hatchling"]

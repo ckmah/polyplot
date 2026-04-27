@@ -37,6 +37,11 @@ def _(gpd, mo, pathlib, po, textwrap):
 
             This notebook uses the tracked `sample_data/liver_crop_sample.parquet`. From
             the repository root (so paths resolve) run `uv run marimo edit quickstart.py`.
+
+            Tip: In `on_demand=True` mode, click a cell in the minimap to build a
+            on-demand tile view. The camera also clamps max zoom-out so you cannot
+            pull back far enough to frame the entire dataset at once (keeps big
+            datasets from loading everything).
             """
         ).strip()
     )
@@ -45,9 +50,7 @@ def _(gpd, mo, pathlib, po, textwrap):
         / "sample_data"
         / "liver_crop_sample.parquet"
     )
-    with mo.status.spinner(title="Meshify (or cache load)…", remove_on_exit=True):
-        po.meshify(gdf, show_progress=True, use_cache=True)
-    viewer = po.plot(gdf, use_cache=True)
+    viewer = po.plot(gdf, on_demand=True)
     return mo.vstack(intro, viewer)
 
 
