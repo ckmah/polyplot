@@ -29,12 +29,8 @@ jobs:
       - run: pip install zensical
       - name: Build Zensical site
         run: zensical build --clean
-      - name: Stage built HTML as docs (Pages artifact path)
-        run: |
-          rm -rf docs
-          mv site docs
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: docs
+          path: site
       - uses: actions/deploy-pages@v4
         id: deployment
