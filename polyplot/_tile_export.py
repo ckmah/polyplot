@@ -26,11 +26,10 @@ import shapely as _shapely
 
 from polyplot._mesh_build import (
     _adaptive_ring_targets_from_scores,
-    _cell_max_turning,
     _largest_polygon,
     build_loft_mesh_from_rings,
-    cell_color,
 )
+from polyplot._cell_rings import prepare_cell_rings
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +334,7 @@ def export_tiles(
     cfg: dict,
     out_dir: Path,
     tile_size_xy: float | None = None,
-    target_tile_mb: float = 5.0,
+    target_tile_mb: float = 20.0,
     compress: bool = True,
     n_jobs: int = -1,
     show_progress: bool = True,
@@ -361,8 +360,7 @@ def export_tiles(
     _ctmp["cx"] = _cx; _ctmp["cy"] = _cy
     _cell_ctr = _ctmp.groupby("cell_id")[["cx", "cy"]].mean()
 
-    all_cell_ids = sorted(gdf_render["cell_id"].unique().tolist())
-    cell_colors = {cid: cell_color(i) for i, cid in enumerate(all_cell_ids)}
+    all_cell_ids, cell_colors, rings_by_cid, zs_by_cid, scores_by_cid = prepare_cell_rings(gdf_render, cfg)
 
     if tile_size_xy is None:
         _nc2 = len(all_cell_ids)
@@ -376,61 +374,6 @@ def export_tiles(
             _yr = float(_cell_ctr["cy"].max() - _cell_ctr["cy"].min())
             _area = _xr * _yr
             tile_size_xy = 200.0 if _area < 1.0 else float(np.sqrt(_tgt / (_nc2 / _area)))
-
-    # Bulk-extract arrays once: avoids 1000 slow pandas __getitem__ calls + groupby.
-    z_scale = cfg.get("z_scale", 2.0)
-    _all_geoms = gdf_render.geometry.values
-    _all_zvals = gdf_render["ZIndex"].to_numpy(dtype=np.float64)
-    _all_cids = gdf_render["cell_id"].values
-    _gmap: dict = defaultdict(list)
-    _zmap: dict = defaultdict(list)
-    for _cid, _g, _z in zip(_all_cids, _all_geoms, _all_zvals):
-        _gmap[_cid].append(_g)
-        _zmap[_cid].append(_z)
-    rings_by_cid: dict = {}
-    zs_by_cid: dict = {}
-    scores_by_cid: dict = {}
-    for cid in all_cell_ids:
-        _polys: list = []
-        _zi: list = []
-        for _geom, _zi_v in zip(_gmap[cid], _zmap[cid], strict=True):
-            if isinstance(_geom, _SGPolygon):
-                _polys.append(_geom)
-                _zi.append(_zi_v)
-            elif isinstance(_geom, _SGMultiPolygon):
-                _subs = [g for g in _geom.geoms if not g.is_empty]
-                if _subs:
-                    _polys.append(max(_subs, key=lambda p: p.area))
-                    _zi.append(_zi_v)
-        if not _polys:
-            rings_by_cid[cid] = []
-            zs_by_cid[cid] = []
-            scores_by_cid[cid] = 0.0
-            continue
-        _ext = _shapely.get_exterior_ring(np.asarray(_polys, dtype=object))
-        _npts = _shapely.get_num_coordinates(_ext)
-        _coords = _shapely.get_coordinates(_ext, include_z=False)
-        _rings: list[np.ndarray] = []
-        _zs: list[float] = []
-        _off = 0
-        for _n, _zv in zip(_npts, _zi):
-            _nc = int(_n)
-            if _nc < 4:
-                _off += _nc
-                continue
-            _pts = _coords[_off:_off + _nc - 1]
-            _off += _nc
-            if len(_pts) < 3:
-                continue
-            _a2 = (_pts[:-1, 0]*_pts[1:, 1] - _pts[1:, 0]*_pts[:-1, 1]).sum()
-            _a2 += _pts[-1, 0]*_pts[0, 1] - _pts[0, 0]*_pts[-1, 1]
-            if _a2 < 0:
-                _pts = _pts[::-1]
-            _rings.append(_pts)
-            _zs.append(float(_zv) * z_scale)
-        rings_by_cid[cid] = _rings
-        zs_by_cid[cid] = _zs
-        scores_by_cid[cid] = _cell_max_turning(_rings)
 
     _min_x = float(_cell_ctr["cx"].min())
     _min_y = float(_cell_ctr["cy"].min())

@@ -112,30 +112,39 @@ def meshify(
 
 def plot(
     gdf: gpd.GeoDataFrame,
+    *,
+    on_demand: bool = False,
+    max_orbit_distance: float | None = None,
     smooth: bool = True,
-    max_concurrent_fetches: int = 4,
     use_cache: bool = True,
     show_progress: bool = True,
+    max_concurrent_fetches: int = 4,
 ) -> MarimoAnywidgetUI:
     """Open the 3D viewer for ``gdf``, building from cache or exporting first.
 
-    Calls :func:`meshify` with ``out_dir=".polyplot"`` and ``show_progress=False``.
-    ``show_progress=False``. Wireframe, opacity, and background are adjusted in the
-    widget toolbar.
+    Default behavior (`on_demand=False`): streams tiles by distance from the camera.
+
+    On-demand tile streaming (`on_demand=True`): still streams tiles, but uses the
+    orbit distance cap (``max_orbit_distance``) to bound how far the camera can
+    pull back and, therefore, how many tiles can be loaded at once.
 
     Args:
         gdf: GeoDataFrame with columns ``cell_id``, ``ZIndex``, and ``geometry``.
         smooth: If ``True``, apply 3D Taubin smoothing; if ``False``, none.
+        on_demand: If True, enforce a distance cap for streaming (via max_orbit_distance).
+        max_orbit_distance: Maximum orbit distance from the target. When set, also caps
+            the effective tile load/unload radii so only nearby tiles load.
+        smooth: If True, apply 3D Taubin smoothing; if False, none.
+        use_cache: Reuse existing meshify cache when available.
+        show_progress: Show progress while building tiles (marimo only).
         max_concurrent_fetches: Maximum parallel HTTP fetches for tile GLBs.
-        use_cache: Forwarded to :func:`meshify`.
-        show_progress: Forwarded to :func:`meshify`.
 
     Returns:
         A marimo ``anywidget`` UI element wrapping :class:`~polyplot.PolyFiberWidget`.
     """
+    import base64
     import marimo as mo
     import numpy as np
-    from polyplot._tile_server import get_or_start
     from polyplot._widget import PolyFiberWidget
 
     # Minimap payload: centroid per cell_id (XY only), packed as float32 then base64.
@@ -152,8 +161,10 @@ def plot(
     cxy = np.empty((len(grp), 2), dtype=np.float32)
     cxy[:, 0] = (grp["wx"] / grp["w"]).to_numpy(dtype=np.float32, copy=False)
     cxy[:, 1] = (grp["wy"] / grp["w"]).to_numpy(dtype=np.float32, copy=False)
-    import base64
     centroids_xy_b64 = base64.b64encode(cxy.tobytes()).decode("ascii")
+    centroids_cell_ids_json = json.dumps([str(x) for x in grp.index.tolist()], separators=(",", ":"))
+
+    from polyplot._tile_server import get_or_start
 
     tiles_info = meshify(
         gdf,
@@ -163,11 +174,23 @@ def plot(
         show_progress=show_progress,
     )
     srv = get_or_start(Path(tiles_info["out_dir"]))
+
+    # If user didn't specify a cap and asked for on-demand streaming, derive a
+    # conservative default from the tile size (world units). With tile_size_xy ~ 4000,
+    # this sets a ~10k neighborhood budget.
+    if on_demand and max_orbit_distance is None:
+        orbit_cap = float(tiles_info["tile_size_xy"]) * 2.5
+    else:
+        orbit_cap = float(max_orbit_distance) if max_orbit_distance is not None else 0.0
+
     widget_model = PolyFiberWidget(
         tile_server_url=srv.url,
         tiles_json_path="tiles.json",
         bbox=tiles_info["scene_bbox"],
         max_concurrent_fetches=max_concurrent_fetches,
         centroids_xy_b64=centroids_xy_b64,
+        centroids_cell_ids_json=centroids_cell_ids_json,
+        on_demand=bool(on_demand),
+        max_orbit_distance=orbit_cap,
     )
     return mo.ui.anywidget(widget_model)

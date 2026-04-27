@@ -26,7 +26,7 @@ info = po.meshify(
 )
 ```
 
-- Writes **`tiles.json`** and per-tile **GLB** files under a content-hashed subfolder of `out_dir` (default `.polyplot`).
+- Writes `**tiles.json**` and per-tile **GLB** files under a content-hashed subfolder of `out_dir` (default `.polyplot`).
 - `smooth` – 3D Taubin smoothing (on) or raw surfaces (off).
 - `use_cache` – if the same fingerprint was built before, reuses the cache and sets `_cache_hit` in the return value.
 - `show_progress` – in marimo, a progress display while building.
@@ -39,6 +39,16 @@ po.plot(gdf, use_cache=True, max_concurrent_fetches=4)
 
 Starts or reuses a local **tile server** and returns a marimo **anywidget** with a Three.js / WebGL view. The toolbar adjusts wireframe, opacity, and background.
 
+Additional optional controls:
+
+```python
+# On-demand tile streaming: bound what can load by distance cap.
+po.plot(gdf, on_demand=True, max_orbit_distance=250.0)
+
+# Clamp how far you can zoom out (max distance from orbit target).
+po.plot(gdf, max_orbit_distance=250.0)
+```
+
 ## Caching and disk use
 
 `meshify` keeps a content-addressed cache. Older digests under the same `out_dir` can be pruned; the set used by an active `plot` server is kept.
@@ -46,3 +56,4 @@ Starts or reuses a local **tile server** and returns a marimo **anywidget** with
 ## Optional tooling
 
 - [gltfpack](https://github.com/zeux/meshopt) on your `PATH` can help shrink GLB output; meshify enables compression when available.
+
