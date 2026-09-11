@@ -9,7 +9,8 @@ dist/
 build/
 
 # Caches and local artifacts
-.polyplot/
+.polyrender/
+.polyplot/  # legacy cache dir name
 .DS_Store
 
 # Editor / local agent config (not part of the published package)

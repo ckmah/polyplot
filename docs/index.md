@@ -8,13 +8,13 @@ icon: lucide/rocket
 
 - [**Get started**](get-started.md) – install, sample data, and the quickstart notebook.
 - [**User guide**](user-guide.md) – `meshify`, `plot`, and caching.
-- [PyPI / source](https://github.com/ckmah/polyplot) – `uv sync` from the repository root (`--extra test` / `--extra docs` as needed); API docstrings in `polyplot/`.
+- [PyPI / source](https://github.com/ckmah/polyplot) – `uv sync` from the repository root (`--extra test` / `--extra docs` as needed); API docstrings in `polyrender/`.
 
 ## At a glance
 
 | Piece | Role |
 |-------|------|
-| `meshify(gdf, ...)` | Preprocess, tile, and write `tiles.json` and GLB shards under a content-hashed directory (default `.polyplot/`) |
+| `meshify(gdf, ...)` | Preprocess, tile, and write `tiles.json` and GLB shards under a content-hashed directory (default `.polyrender/`) |
 | `plot(gdf, ...)` | Ensure tiles exist, run a local tile server, and return a marimo `anywidget` WebGL view |
 
 The viewer controls **wireframe**, **opacity**, and **background** in the UI; they are not set from Python.

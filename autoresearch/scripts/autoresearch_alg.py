@@ -21,8 +21,8 @@ AUTORESEARCH_DIR = _SCRIPT_DIR.parent
 REPO_ROOT = AUTORESEARCH_DIR.parent
 _LOG_DIR = AUTORESEARCH_DIR / "logs"
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
-MB = REPO_ROOT / "polyplot" / "_mesh_build.py"
-TP = REPO_ROOT / "polyplot" / "_tile_export.py"
+MB = REPO_ROOT / "polyrender" / "_mesh_build.py"
+TP = REPO_ROOT / "polyrender" / "_tile_export.py"
 RESULTS = AUTORESEARCH_DIR / "results.tsv"
 LOG = _LOG_DIR / "autoresearch_200.log"
 MEASURE = _SCRIPT_DIR / "meshify_benchmark_measure.py"

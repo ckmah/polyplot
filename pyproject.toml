@@ -1,5 +1,5 @@
 [project]
-name = "polyplot"
+name = "polyrender"
 version = "0.1.0"
 description = "Three Fiber-based vis widget for 2.5D polygons"
 requires-python = ">=3.12"
@@ -39,7 +39,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["polyplot"]
+packages = ["polyrender"]
 
 [tool.marimo.save]
 # Required for stable `--watch`: otherwise autosave races with external editors

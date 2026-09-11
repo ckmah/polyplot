@@ -6,7 +6,7 @@ import anywidget
 import traitlets
 
 
-class PolyFiberWidget(anywidget.AnyWidget):
+class PolyRenderWidget(anywidget.AnyWidget):
     """Streaming 3D cross-section viewer backed by GLB tile files."""
 
     _esm = pathlib.Path(__file__).parent / "widget.js"

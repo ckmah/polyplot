@@ -25,7 +25,7 @@ AUTORESEARCH_DIR = _SCRIPT_DIR.parent
 REPO_ROOT = AUTORESEARCH_DIR.parent
 _LOG_DIR = AUTORESEARCH_DIR / "logs"
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
-MB = REPO_ROOT / "polyplot" / "_mesh_build.py"
+MB = REPO_ROOT / "polyrender" / "_mesh_build.py"
 RESULTS = AUTORESEARCH_DIR / "results.tsv"
 LOG = _LOG_DIR / "autoresearch_1k.log"
 MEASURE = _SCRIPT_DIR / "meshify_benchmark_measure.py"
@@ -150,10 +150,10 @@ def main() -> None:
             _append(exp_id, "-", 0.0, "skip", desc + " (no regex match)")
             continue
         MB.write_text(new, encoding="utf-8")
-        _git("add", "polyplot/_mesh_build.py")
+        _git("add", "polyrender/_mesh_build.py")
         c = _git("commit", "-m", f"experiment {exp_id}: mesh W={win} C={cap} F={fft_th}")
         if c.returncode != 0:
-            _git("checkout", "HEAD", "--", "polyplot/_mesh_build.py")
+            _git("checkout", "HEAD", "--", "polyrender/_mesh_build.py")
             _append(exp_id, "-", 0.0, "skip", desc + " commit_fail")
             continue
         commit = (_git("rev-parse", "--short", "HEAD").stdout or "").strip()

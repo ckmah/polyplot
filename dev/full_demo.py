@@ -4,7 +4,7 @@
 #     "marimo>=0.22",
 #     "geopandas>=1.0",
 #     "pyarrow",
-#     "polyplot @ git+https://github.com/ckmah/polyplot.git@ec17ca181279b30b4b2befddb15d5c15d118b3b0",
+#     "polyrender @ git+https://github.com/ckmah/polyplot.git@ec17ca181279b30b4b2befddb15d5c15d118b3b0",
 # ]
 # ///
 
@@ -19,7 +19,7 @@ def _():
     import os
 
     import geopandas as gpd
-    import polyplot as po
+    import polyrender as po
 
     parquet_url = os.getenv(
         "POLYPLOT_PARQUET_URL",

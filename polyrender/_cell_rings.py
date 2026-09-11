@@ -7,7 +7,7 @@ import shapely as _shapely
 from shapely.geometry import MultiPolygon as _SGMultiPolygon
 from shapely.geometry import Polygon as _SGPolygon
 
-from polyplot._mesh_build import _cell_max_turning, cell_color
+from polyrender._mesh_build import _cell_max_turning, cell_color
 
 
 def prepare_cell_rings(gdf_render, cfg: dict):

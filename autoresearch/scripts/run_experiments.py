@@ -10,7 +10,7 @@ AUTORESEARCH_DIR = _SCRIPT_DIR.parent
 REPO_ROOT = AUTORESEARCH_DIR.parent
 _LOG_DIR = AUTORESEARCH_DIR / "logs"
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
-MB = REPO_ROOT / "polyplot" / "_mesh_build.py"
+MB = REPO_ROOT / "polyrender" / "_mesh_build.py"
 RESULTS = AUTORESEARCH_DIR / "results.tsv"
 LOG = _LOG_DIR / "autoresearch_run.log"
 MEASURE = _SCRIPT_DIR / "meshify_benchmark_measure.py"
@@ -474,7 +474,7 @@ def _arc_resample_nb(ring: np.ndarray, n_points: int) -> np.ndarray:"""),
 
 ]
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
 
 # ================================================================
 # BATCH 5: Numba warmup, shapely coords bypass, strip vectorise,
@@ -750,8 +750,8 @@ def _largest_polygon(geom):
 
 ]
 
-CA = REPO_ROOT / "polyplot" / "_cache.py"
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
+CA = REPO_ROOT / "polyrender" / "_cache.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
 
 # ================================================================
 # BATCH 6: Profile-driven optimizations after exp 149.
@@ -848,8 +848,8 @@ def _cell_max_turning(rings: list[np.ndarray]) -> float:
     # --------------------------------------------------------
     ("gdf_cache_key vectorised WKB + repr-bulk id/ZIndex hash", [
         (CA,
-         '_CACHE_VERSION = b"polyplot_cache_v5\\n"',
-         '_CACHE_VERSION = b"polyplot_cache_v6\\n"'),
+         '_CACHE_VERSION = b"polyrender_cache_v5\\n"',
+         '_CACHE_VERSION = b"polyrender_cache_v6\\n"'),
         (CA,
          """\
 def gdf_cache_key(gdf, smooth: bool) -> str:
@@ -1120,7 +1120,7 @@ def _arc_resample_closed(ring: np.ndarray, n_points: int) -> np.ndarray:
 
 ]
 
-PP = REPO_ROOT / "polyplot" / "_preprocess.py"
+PP = REPO_ROOT / "polyrender" / "_preprocess.py"
 
 # ================================================================
 # BATCH 7: curvature_resample_nb + simplify topology + cell_max_turning
@@ -1448,7 +1448,7 @@ def _cell_max_turning(rings: list[np.ndarray]) -> float:
 ]
 
 
-PP = REPO_ROOT / "polyplot" / "_preprocess.py"
+PP = REPO_ROOT / "polyrender" / "_preprocess.py"
 
 EXPERIMENTS_8 = [
 
@@ -2319,7 +2319,7 @@ EXPERIMENTS_11 = [
 
 ]
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
 
 EXPERIMENTS_12 = [
 
@@ -2463,8 +2463,8 @@ EXPERIMENTS_12 = [
 
 ]
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
-MB = REPO_ROOT / "polyplot" / "_mesh_build.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
+MB = REPO_ROOT / "polyrender" / "_mesh_build.py"
 
 EXPERIMENTS_13 = [
 
@@ -2525,7 +2525,7 @@ def _build_glb_bytes(
     pmax = positions_f32.max(axis=0).tolist()
     n_idx = int(len(indices_u32))
     gltf_json = _json.dumps({
-        "asset": {"version": "2.0", "generator": "polyplot"},
+        "asset": {"version": "2.0", "generator": "polyrender"},
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": [{"mesh": 0}],
         "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "COLOR_0": 2, "NORMAL": 3}, "indices": 1, "mode": 4}]}],
@@ -2646,7 +2646,7 @@ def _arc_resample_nb(ring: np.ndarray, n_points: int) -> np.ndarray:"""),
 
 ]
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
 
 EXPERIMENTS_14 = [
 
@@ -2735,7 +2735,7 @@ def _build_glb_bytes(
     pmax = positions_f32.max(axis=0).tolist()
     n_idx = int(len(indices_u32))
     gltf_json = _json.dumps({
-        "asset": {"version": "2.0", "generator": "polyplot"},
+        "asset": {"version": "2.0", "generator": "polyrender"},
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": [{"mesh": 0}],
         "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "COLOR_0": 2, "NORMAL": 3}, "indices": 1, "mode": 4}]}],
@@ -2805,7 +2805,7 @@ def _build_glb_bytes(
 
 ]
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
 
 # ================================================================
 # BATCH 15: Two-phase parallel gltfpack (sequential build + parallel compress)
@@ -3009,7 +3009,7 @@ def _build_glb_bytes(
     pmax = positions_f32.max(axis=0).tolist()
     n_idx = int(len(indices_u32))
     gltf_json = _json.dumps({
-        "asset": {"version": "2.0", "generator": "polyplot"},
+        "asset": {"version": "2.0", "generator": "polyrender"},
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": [{"mesh": 0}],
         "meshes": [{"primitives": [{"attributes": {"POSITION": 0, "COLOR_0": 2, "NORMAL": 3}, "indices": 1, "mode": 4}]}],
@@ -3099,8 +3099,8 @@ def _build_glb_bytes(
 
 ]
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
-MB = REPO_ROOT / "polyplot" / "_mesh_build.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
+MB = REPO_ROOT / "polyrender" / "_mesh_build.py"
 
 # ================================================================
 # BATCH 16: ring_target reduction + bulk array extract for collect_rings
@@ -3141,8 +3141,8 @@ EXPERIMENTS_16 = [
          "    return rings_2d, zs\n\n\n@njit(cache=True, fastmath=True, nogil=True)\ndef _cell_max_turning_nb(",
          "    return rings_2d, zs\n\n\ndef _collect_rings_arrays(\n    geoms: np.ndarray, zvals: np.ndarray, z_scale: float\n) -> tuple[list[np.ndarray], list[float]]:\n    \"\"\"Like _collect_rings_for_cell but accepts pre-extracted numpy arrays.\"\"\"\n    polys: list = []\n    zi_keep: list[float] = []\n    for geom, zi in zip(geoms, zvals, strict=True):\n        p = _largest_polygon(geom)\n        if p is not None:\n            polys.append(p)\n            zi_keep.append(zi)\n    if not polys:\n        return [], []\n    ext_rings = _shapely.get_exterior_ring(np.asarray(polys, dtype=object))\n    npts = _shapely.get_num_coordinates(ext_rings)\n    coords_all = _shapely.get_coordinates(ext_rings, include_z=False)\n    rings_2d: list[np.ndarray] = []\n    zs: list[float] = []\n    offset = 0\n    for n, zi in zip(npts, zi_keep):\n        nc = int(n)\n        if nc < 4:\n            offset += nc\n            continue\n        pts = coords_all[offset:offset + nc - 1]\n        offset += nc\n        if len(pts) < 3:\n            continue\n        area2 = (pts[:-1, 0] * pts[1:, 1] - pts[1:, 0] * pts[:-1, 1]).sum()\n        area2 += pts[-1, 0] * pts[0, 1] - pts[0, 0] * pts[-1, 1]\n        if area2 < 0:\n            pts = pts[::-1]\n        rings_2d.append(pts)\n        zs.append(float(zi) * float(z_scale))\n    return rings_2d, zs\n\n\n@njit(cache=True, fastmath=True, nogil=True)\ndef _cell_max_turning_nb("),
         (TE,
-         "from polyplot._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _collect_rings_for_cell,\n    build_loft_mesh_from_rings,\n    cell_color,\n)",
-         "from polyplot._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _collect_rings_arrays,\n    build_loft_mesh_from_rings,\n    cell_color,\n)"),
+         "from polyrender._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _collect_rings_for_cell,\n    build_loft_mesh_from_rings,\n    cell_color,\n)",
+         "from polyrender._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _collect_rings_arrays,\n    build_loft_mesh_from_rings,\n    cell_color,\n)"),
         (TE,
          "    # Group once: avoids O(n_cells * n_rows) boolean slicing.\n    groups = {cid: df for cid, df in gdf_render.groupby(\"cell_id\", sort=False)}\n\n    # Pre-extract rings once per cell (used for adaptive sizing + meshing).\n    z_scale = cfg.get(\"z_scale\", 2.0)\n    rings_by_cid: dict = {}\n    zs_by_cid: dict = {}\n    scores_by_cid: dict = {}\n    for cid in all_cell_ids:\n        rings, zs = _collect_rings_for_cell(groups[cid], z_scale)\n        rings_by_cid[cid] = rings\n        zs_by_cid[cid] = zs\n        scores_by_cid[cid] = _cell_max_turning(rings) if rings else 0.0",
          "    # Bulk-extract geometry/ZIndex arrays once (avoids 1000 slow pandas __getitem__ calls\n    # and eliminates the groupby overhead).\n    z_scale = cfg.get(\"z_scale\", 2.0)\n    _geoms_col = gdf_render.geometry.values\n    _zvals_col = gdf_render[\"ZIndex\"].to_numpy(dtype=np.float64)\n    _cids_col = gdf_render[\"cell_id\"].values\n    _geoms_map: dict = defaultdict(list)\n    _zvals_map: dict = defaultdict(list)\n    for _cid, _g, _z in zip(_cids_col, _geoms_col, _zvals_col):\n        _geoms_map[_cid].append(_g)\n        _zvals_map[_cid].append(_z)\n    rings_by_cid: dict = {}\n    zs_by_cid: dict = {}\n    scores_by_cid: dict = {}\n    for cid in all_cell_ids:\n        rings, zs = _collect_rings_arrays(\n            np.asarray(_geoms_map[cid]),\n            np.asarray(_zvals_map[cid], dtype=np.float64),\n            z_scale,\n        )\n        rings_by_cid[cid] = rings\n        zs_by_cid[cid] = zs\n        scores_by_cid[cid] = _cell_max_turning(rings) if rings else 0.0"),
@@ -3170,7 +3170,7 @@ EXPERIMENTS_16 = [
 
 ]
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
 
 # ================================================================
 # BATCH 17: Key fix - only patch _tile_export.py to avoid Numba cache invalidation.
@@ -3256,8 +3256,8 @@ EXPERIMENTS_17 = [
     # ---------------------------------------------------------------
     ("tile_export: inline bulk ring extraction (skip groupby + pandas per-cell)", [
         (TE,
-         "from polyplot._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _collect_rings_for_cell,\n    build_loft_mesh_from_rings,\n    cell_color,\n)",
-         "import shapely as _shapely\n\nfrom polyplot._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _largest_polygon,\n    build_loft_mesh_from_rings,\n    cell_color,\n)"),
+         "from polyrender._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _collect_rings_for_cell,\n    build_loft_mesh_from_rings,\n    cell_color,\n)",
+         "import shapely as _shapely\n\nfrom polyrender._mesh_build import (\n    _adaptive_ring_targets_from_scores,\n    _cell_max_turning,\n    _largest_polygon,\n    build_loft_mesh_from_rings,\n    cell_color,\n)"),
         (TE,
          _BULK_OLD,
          _BULK_NEW),
@@ -3304,7 +3304,7 @@ EXPERIMENTS_17 = [
 ]
 
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
 
 # ================================================================
 # BATCH 18: Continue ring_target reduction + misc TE-only optimizations.
@@ -3586,9 +3586,9 @@ EXPERIMENTS_18 = [
 ]
 
 
-TE = REPO_ROOT / "polyplot" / "_tile_export.py"
-PP = REPO_ROOT / "polyplot" / "_preprocess.py"
-CA = REPO_ROOT / "polyplot" / "_cache.py"
+TE = REPO_ROOT / "polyrender" / "_tile_export.py"
+PP = REPO_ROOT / "polyrender" / "_preprocess.py"
+CA = REPO_ROOT / "polyrender" / "_cache.py"
 
 # ================================================================
 # BATCH 19: Profiling reveals:
@@ -3767,7 +3767,7 @@ EXPERIMENTS_19 = [
 
 ]
 
-_API = REPO_ROOT / "polyplot" / "_api.py"
+_API = REPO_ROOT / "polyrender" / "_api.py"
 
 # ================================================================
 # BATCH 20: Key findings:

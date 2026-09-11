@@ -24,12 +24,12 @@ import numpy as np
 from shapely.geometry import Polygon as _SGPolygon, MultiPolygon as _SGMultiPolygon
 import shapely as _shapely
 
-from polyplot._mesh_build import (
+from polyrender._mesh_build import (
     _adaptive_ring_targets_from_scores,
     _largest_polygon,
     build_loft_mesh_from_rings,
 )
-from polyplot._cell_rings import prepare_cell_rings
+from polyrender._cell_rings import prepare_cell_rings
 
 
 # ---------------------------------------------------------------------------
