@@ -1,0 +1,38 @@
+name: Publish (PyPI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_publish:
+        description: "Type 'publish' to upload to PyPI"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    if: ${{ inputs.confirm_publish == 'publish' }}
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Show package metadata
+        run: |
+          python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+          project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+          assert project["name"] == "polyplot", project["name"]
+          print("package:", project["name"])
+          print("version:", project["version"])
+          PY
+
+      - run: uv sync --group dev
+      - run: uv run pytest
+      - run: uv build
+      - run: uv publish
