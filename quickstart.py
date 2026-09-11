@@ -4,10 +4,7 @@
 #   "marimo>=0.22",
 #   "geopandas>=1.0",
 #   "pyarrow",
-#   "polyplot",
 # ]
-# [tool.uv.sources]
-# polyplot = { path = ".", editable = true }
 # ///
 
 import marimo
@@ -19,17 +16,22 @@ app = marimo.App(width="full")
 @app.cell
 def _():
     import pathlib
+    import sys
     import textwrap
 
     import geopandas as gpd
     import marimo as mo
+
+    repo_root = pathlib.Path(__file__).resolve().parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
     import polyplot as po
 
-    return gpd, mo, pathlib, po, textwrap
+    return gpd, mo, po, repo_root, textwrap
 
 
 @app.cell
-def _(gpd, mo, pathlib, po, textwrap):
+def _(gpd, mo, po, repo_root, textwrap):
     intro = mo.md(
         textwrap.dedent(
             """
@@ -45,11 +47,7 @@ def _(gpd, mo, pathlib, po, textwrap):
             """
         ).strip()
     )
-    gdf = gpd.read_parquet(
-        pathlib.Path(__file__).resolve().parent
-        / "sample_data"
-        / "liver_crop_sample.parquet"
-    )
+    gdf = gpd.read_parquet(repo_root / "sample_data" / "liver_crop_sample.parquet")
     viewer = po.plot(gdf, on_demand=True)
     return mo.vstack(intro, viewer)
 
