@@ -24,7 +24,7 @@ def _():
     import polyrender as po
 
     parquet_url = os.getenv(
-        "POLYPLOT_PARQUET_URL",
+        "POLYRENDER_PARQUET_URL",
         "https://huggingface.co/datasets/ckmah/polyplot/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop_sample.parquet",
     )
     return gpd, mo, parquet_url, po, textwrap
@@ -50,12 +50,12 @@ def _(gpd, mo, parquet_url, po, textwrap):
     intro = mo.md(
         textwrap.dedent(
             f"""
-            # Polyplot quick start
+            # Polyrender quick start
 
             This notebook loads sample data from Hugging Face only, so it works
             in hosted MoLab sessions where only this notebook file is copied.
 
-            Set `POLYPLOT_PARQUET_URL` to any public parquet URL.
+            Set `POLYRENDER_PARQUET_URL` to any public parquet URL.
             Current source: `{parquet_url}`
 
             Tip: In `on_demand=True` mode, click a cell in the minimap to build a

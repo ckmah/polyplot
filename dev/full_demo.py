@@ -22,7 +22,7 @@ def _():
     import polyrender as po
 
     parquet_url = os.getenv(
-        "POLYPLOT_PARQUET_URL",
+        "POLYRENDER_PARQUET_URL",
         "https://huggingface.co/datasets/ckmah/polyplot/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop.parquet",
     )
     return gpd, parquet_url, po
