@@ -4,7 +4,7 @@
 #   "marimo>=0.22",
 #   "geopandas>=1.0",
 #   "pyarrow",
-#   "polyrender @ git+https://github.com/ckmah/polyrender.git@e2adf041c417b0ffb0121a78364f368e19cc2999",
+#   "polyrender @ git+https://github.com/ckmah/polyrender.git@ed2f47e954ecf0ac846bca10668a2754b1a7725e",
 # ]
 # ///
 
