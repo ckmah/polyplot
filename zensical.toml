@@ -27,10 +27,10 @@ site_author = "ckmah"
 # The site_url is the canonical URL for your site. When building online
 # documentation you should set this.
 # Read more: https://zensical.org/docs/setup/basics/#site_url
-site_url = "https://ckmah.github.io/polyplot/"
+site_url = "https://ckmah.github.io/polyrender/"
 
-repo_url = "https://github.com/ckmah/polyplot"
-repo_name = "ckmah/polyplot"
+repo_url = "https://github.com/ckmah/polyrender"
+repo_name = "ckmah/polyrender"
 
 # The copyright notice appears in the page footer and can contain an HTML
 # fragment.
@@ -303,7 +303,7 @@ toggle.name = "Switch to light mode"
 # ----------------------------------------------------------------------------
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-link = "https://github.com/ckmah/polyplot"
+link = "https://github.com/ckmah/polyrender"
 
 # ----------------------------------------------------------------------------
 # In this section you can configure the Markdown extensions that are used when

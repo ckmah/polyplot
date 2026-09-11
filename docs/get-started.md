@@ -8,8 +8,8 @@
 ## Install
 
 ```bash
-git clone https://github.com/ckmah/polyplot.git
-cd polyplot
+git clone https://github.com/ckmah/polyrender.git
+cd polyrender
 uv sync
 ```
 
@@ -38,13 +38,13 @@ Larger local parquets in `sample_data/` are not tracked by git (see `sample_data
 
 ## Quick start (marimo)
 
-The shortest path is [`quickstart.py`](https://github.com/ckmah/polyplot/blob/main/quickstart.py) at the repository root (marimo). From a clone of the repository:
+The shortest path is [`quickstart.py`](https://github.com/ckmah/polyrender/blob/main/quickstart.py) at the repository root (marimo). From a clone of the repository:
 
 ```bash
 uv run marimo edit quickstart.py
 ```
 
-A **“Open in molab”** badge in the [README](https://github.com/ckmah/polyplot#readme) links to a hosted run once the file is on the default branch.
+A **“Open in molab”** badge in the [README](https://github.com/ckmah/polyrender#readme) links to a hosted run once the file is on the default branch.
 
 ## Full demo
 
@@ -64,4 +64,4 @@ Open the URL printed in the terminal (by default [http://127.0.0.1:8000](http://
 
 ## Publish
 
-Documentation for this site is built with [Zensical](https://zensical.org/docs/) in CI and published to **GitHub Pages** at the [`site_url`](https://ckmah.github.io/polyplot/) configured in `zensical.toml`.
+Documentation for this site is built with [Zensical](https://zensical.org/docs/) in CI and published to **GitHub Pages** at the [`site_url`](https://ckmah.github.io/polyrender/) configured in `zensical.toml`.

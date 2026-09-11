@@ -4,7 +4,7 @@
 
 ![polyrender viewer showing colorful 3D cell meshes](assets/viewer.jpg)
 
-**Documentation (Zensical):** [ckmah.github.io/polyplot](https://ckmah.github.io/polyplot/)
+**Documentation (Zensical):** [ckmah.github.io/polyrender](https://ckmah.github.io/polyrender/)
 
 ## Requirements
 
@@ -38,7 +38,7 @@ uv sync --group dev
 uv run marimo edit quickstart.py
 ```
 
-[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/ckmah/polyplot/blob/main/quickstart.py)
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/ckmah/polyrender/blob/main/quickstart.py)
 
 ## Usage
 
@@ -74,6 +74,6 @@ The Python package lives in the `polyrender/` directory. Optional: install [gltf
 
 ## Repository
 
-[github.com/ckmah/polyplot](https://github.com/ckmah/polyplot)
+[github.com/ckmah/polyrender](https://github.com/ckmah/polyrender)
 
 To publish pre-rendered molab sessions, run from the repo root: `uvx marimo export session quickstart.py` (and similarly for `dev/full_demo.py` if desired).

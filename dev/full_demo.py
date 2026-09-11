@@ -4,7 +4,7 @@
 #     "marimo>=0.22",
 #     "geopandas>=1.0",
 #     "pyarrow",
-#     "polyrender @ git+https://github.com/ckmah/polyplot.git@e2adf041c417b0ffb0121a78364f368e19cc2999",
+#     "polyrender @ git+https://github.com/ckmah/polyrender.git@e2adf041c417b0ffb0121a78364f368e19cc2999",
 # ]
 # ///
 
@@ -23,7 +23,7 @@ def _():
 
     parquet_url = os.getenv(
         "POLYRENDER_PARQUET_URL",
-        "https://huggingface.co/datasets/ckmah/polyplot/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop.parquet",
+        "https://huggingface.co/datasets/ckmah/polyrender/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop.parquet",
     )
     return gpd, parquet_url, po
 
