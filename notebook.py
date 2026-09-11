@@ -16,27 +16,22 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
-    import pathlib
+    import os
 
     import geopandas as gpd
     import polyplot as po
 
-    repo_root = (
-        pathlib.Path(__file__).resolve().parent
-        if "__file__" in globals()
-        else pathlib.Path.cwd()
+    data_url = os.getenv(
+        "POLYPLOT_PARQUET_URL",
+        "https://raw.githubusercontent.com/ckmah/polyplot/main/sample_data/liver_crop_sample.parquet",
     )
-    return gpd, po, repo_root
+    return data_url, gpd, po
 
 
 @app.cell
-def _(gpd, repo_root):
-    """Load local full data when present, otherwise the tracked sample."""
-    data_dir = repo_root / "sample_data"
-    full_path = data_dir / "liver_crop.parquet"
-    sample_path = data_dir / "liver_crop_sample.parquet"
-    data_path = full_path if full_path.exists() else sample_path
-    gdf = gpd.read_parquet(data_path)
+def _(data_url, gpd):
+    """Load sample data from raw GitHub (or POLYPLOT_PARQUET_URL override)."""
+    gdf = gpd.read_parquet(data_url)
     return (gdf,)
 
 

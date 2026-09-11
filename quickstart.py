@@ -16,30 +16,30 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
-    import pathlib
+    import os
     import textwrap
 
     import geopandas as gpd
     import marimo as mo
     import polyplot as po
 
-    repo_root = (
-        pathlib.Path(__file__).resolve().parent
-        if "__file__" in globals()
-        else pathlib.Path.cwd()
+    data_url = os.getenv(
+        "POLYPLOT_PARQUET_URL",
+        "https://raw.githubusercontent.com/ckmah/polyplot/main/sample_data/liver_crop_sample.parquet",
     )
-    return gpd, mo, po, repo_root, textwrap
+    return data_url, gpd, mo, po, textwrap
 
 
 @app.cell
-def _(gpd, mo, po, repo_root, textwrap):
+def _(data_url, gpd, mo, po, textwrap):
     intro = mo.md(
         textwrap.dedent(
             """
             # Polyplot quick start
 
-            This notebook uses the tracked `sample_data/liver_crop_sample.parquet`. From
-            the repository root (so paths resolve) run `uv run marimo edit quickstart.py`.
+            This notebook loads sample data from a raw GitHub URL so it works in
+            hosted MoLab sessions where only this notebook file is copied.
+            Optionally override the URL with `POLYPLOT_PARQUET_URL`.
 
             Tip: In `on_demand=True` mode, click a cell in the minimap to build a
             on-demand tile view. The camera also clamps max zoom-out so you cannot
@@ -48,7 +48,7 @@ def _(gpd, mo, po, repo_root, textwrap):
             """
         ).strip()
     )
-    gdf = gpd.read_parquet(repo_root / "sample_data" / "liver_crop_sample.parquet")
+    gdf = gpd.read_parquet(data_url)
     viewer = po.plot(gdf, on_demand=True)
     return mo.vstack(intro, viewer)
 
