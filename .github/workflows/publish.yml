@@ -1,6 +1,9 @@
 name: Publish (PyPI)
 
 on:
+  push:
+    tags:
+      - "v0.1"
   workflow_dispatch:
     inputs:
       confirm_publish:
