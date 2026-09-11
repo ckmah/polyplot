@@ -13,7 +13,8 @@ on:
 
 jobs:
   publish:
-    if: ${{ inputs.confirm_publish == 'publish' }}
+    # Tag push always publishes; manual dispatch requires typing "publish".
+    if: ${{ github.event_name == 'push' || inputs.confirm_publish == 'publish' }}
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
