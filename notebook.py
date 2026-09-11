@@ -22,9 +22,11 @@ def _():
     import geopandas as gpd
     import polyplot as po
 
-    dataset_repo = os.getenv("POLYPLOT_HF_DATASET_REPO", "ckmah/polyplot-data")
+    dataset_repo = os.getenv("POLYPLOT_HF_DATASET_REPO", "ckmah/polyplot")
     dataset_file = os.getenv("POLYPLOT_HF_DATASET_FILE", "liver_crop_sample.parquet")
-    dataset_ref = os.getenv("POLYPLOT_HF_DATASET_REF", "main")
+    dataset_ref = os.getenv(
+        "POLYPLOT_HF_DATASET_REF", "92678be92f8e0b06fc2a32b53885c4fdf3419ee3"
+    )
     hf_data_url = os.getenv(
         "POLYPLOT_HF_PARQUET_URL",
         f"https://huggingface.co/datasets/{dataset_repo}/resolve/{urllib.parse.quote(dataset_ref, safe='')}/{dataset_file}",
