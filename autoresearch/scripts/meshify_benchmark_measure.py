@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run ``notebook.py`` once and print meshify wall time **per cell** (seconds).
+"""Run ``dev/full_demo.py`` once and print meshify wall time per cell.
 
 Reads the last line matching ``^MESHIFY_PER_CELL_SECONDS=(.+)$`` from combined
 stdout/stderr. Also writes the full capture to ``autoresearch/logs/run.log``.
@@ -26,7 +26,7 @@ def main() -> None:
     log_dir = autoresearch_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        ["uv", "run", "python", str(repo_root / "notebook.py")],
+        ["uv", "run", "python", str(repo_root / "dev" / "full_demo.py")],
         cwd=repo_root,
         capture_output=True,
         text=True,

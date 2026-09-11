@@ -4,7 +4,7 @@ Experiment drivers and benchmarks for the meshify pipeline. This tree is **not**
 
 | Path | Role |
 |------|------|
-| `scripts/meshify_benchmark_measure.py` | Runs `notebook.py`, prints seconds per cell |
+| `scripts/meshify_benchmark_measure.py` | Runs `dev/full_demo.py`, prints seconds per cell |
 | `scripts/run_experiments.py` | Main commit / measure / revert loop |
 | `scripts/autoresearch_alg.py` | Fixed catalog of algorithmic experiments |
 | `scripts/autoresearch_1k.py` | Structural grid over mesh knobs |

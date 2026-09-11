@@ -35,10 +35,10 @@ A **“Open in molab”** badge in the [README](https://github.com/ckmah/polyplo
 
 ## Full demo
 
-For a longer walkthrough, see `notebook.py`:
+For a longer walkthrough, see `dev/full_demo.py`:
 
 ```bash
-uv run marimo edit notebook.py
+uv run marimo edit dev/full_demo.py
 ```
 
 ## Build this documentation site locally

@@ -39,12 +39,12 @@ po.plot(gdf)  # meshifies from cache if needed; wireframe / opacity / BG in the 
 - **`meshify`**: preprocess a GeoDataFrame (`cell_id`, `ZIndex`, `geometry`), write `tiles/` and `tiles.json` under `.polyplot/<content hash>/` by default (override with `out_dir=...`). Use `smooth=False` for no Taubin smoothing, `use_cache=False` to force a rebuild.
 - **`plot`**: calls `meshify` when needed, starts or reuses a local tile server, and returns a marimo `anywidget` viewer. Wireframe, opacity, and background are adjusted in the widget toolbar, not via Python.
 
-## Full demo
+## Full demo (development notebook)
 
-The longer example is `notebook.py` (a marimo app):
+The longer example is `dev/full_demo.py` (a marimo app for development/benchmarking):
 
 ```bash
-uv run marimo edit notebook.py
+uv run marimo edit dev/full_demo.py
 ```
 
 ## Sample data
@@ -63,4 +63,4 @@ The Python package lives in the `polyplot/` directory. Optional: install [gltfpa
 
 [github.com/ckmah/polyplot](https://github.com/ckmah/polyplot)
 
-To publish pre-rendered molab sessions, run from the repo root: `uvx marimo export session quickstart.py` (and similarly for `notebook.py` if desired).
+To publish pre-rendered molab sessions, run from the repo root: `uvx marimo export session quickstart.py` (and similarly for `dev/full_demo.py` if desired).

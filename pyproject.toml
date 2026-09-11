@@ -37,7 +37,7 @@ packages = ["polyplot"]
 
 [tool.marimo.save]
 # Required for stable `--watch`: otherwise autosave races with external editors
-# (e.g. Cursor) and the browser can show stale code vs notebook.py on disk.
+# (e.g. Cursor) and the browser can show stale code vs on-disk notebook files.
 autosave = "off"
 
 [tool.uv]
