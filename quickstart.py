@@ -4,6 +4,7 @@
 #   "marimo>=0.22",
 #   "geopandas>=1.0",
 #   "pyarrow",
+#   "polyplot @ git+https://github.com/ckmah/polyplot.git@ec17ca181279b30b4b2befddb15d5c15d118b3b0",
 # ]
 # ///
 
@@ -16,17 +17,17 @@ app = marimo.App(width="full")
 @app.cell
 def _():
     import pathlib
-    import sys
     import textwrap
 
     import geopandas as gpd
     import marimo as mo
-
-    repo_root = pathlib.Path(__file__).resolve().parent
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
     import polyplot as po
 
+    repo_root = (
+        pathlib.Path(__file__).resolve().parent
+        if "__file__" in globals()
+        else pathlib.Path.cwd()
+    )
     return gpd, mo, po, repo_root, textwrap
 
 
