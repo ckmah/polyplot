@@ -18,31 +18,21 @@ app = marimo.App(width="full")
 def _():
     import os
     import textwrap
-    import urllib.parse
 
     import geopandas as gpd
     import marimo as mo
     import polyplot as po
 
-    dataset_repo = os.getenv("POLYPLOT_HF_DATASET_REPO", "ckmah/polyplot")
-    dataset_file = os.getenv("POLYPLOT_HF_DATASET_FILE", "liver_crop_sample.parquet")
-    dataset_ref = os.getenv(
-        "POLYPLOT_HF_DATASET_REF", "92678be92f8e0b06fc2a32b53885c4fdf3419ee3"
+    parquet_url = os.getenv(
+        "POLYPLOT_PARQUET_URL",
+        "https://huggingface.co/datasets/ckmah/polyplot/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop_sample.parquet",
     )
-    hf_data_url = os.getenv(
-        "POLYPLOT_HF_PARQUET_URL",
-        f"https://huggingface.co/datasets/{dataset_repo}/resolve/{urllib.parse.quote(dataset_ref, safe='')}/{dataset_file}",
-    )
-    hf_token = os.getenv("HF_TOKEN")
-    return gpd, hf_data_url, hf_token, mo, po, textwrap
+    return gpd, mo, parquet_url, po, textwrap
 
 
 @app.cell
-def _(gpd, hf_data_url, hf_token, mo, po, textwrap):
-    storage_options = None
-    if hf_token and "huggingface.co" in hf_data_url:
-        storage_options = {"Authorization": f"Bearer {hf_token}"}
-    gdf = gpd.read_parquet(hf_data_url, storage_options=storage_options)
+def _(gpd, mo, parquet_url, po, textwrap):
+    gdf = gpd.read_parquet(parquet_url)
 
     intro = mo.md(
         textwrap.dedent(
@@ -52,17 +42,8 @@ def _(gpd, hf_data_url, hf_token, mo, po, textwrap):
             This notebook loads sample data from Hugging Face only, so it works
             in hosted MoLab sessions where only this notebook file is copied.
 
-            Source configuration:
-            1. `POLYPLOT_HF_PARQUET_URL`
-            2. built URL from `POLYPLOT_HF_DATASET_REPO`,
-               `POLYPLOT_HF_DATASET_REF`, `POLYPLOT_HF_DATASET_FILE`
-
-            Defaults point to Hugging Face dataset `ckmah/polyplot` at commit
-            `92678be92f8e0b06fc2a32b53885c4fdf3419ee3`.
-
-            If your HF dataset is private, set `HF_TOKEN`.
-
-            Current source: `{hf_data_url}`
+            Set `POLYPLOT_PARQUET_URL` to any public parquet URL.
+            Current source: `{parquet_url}`
 
             Tip: In `on_demand=True` mode, click a cell in the minimap to build a
             on-demand tile view. The camera also clamps max zoom-out so you cannot

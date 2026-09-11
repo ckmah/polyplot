@@ -17,31 +17,21 @@ app = marimo.App(width="full")
 @app.cell
 def _():
     import os
-    import urllib.parse
 
     import geopandas as gpd
     import polyplot as po
 
-    dataset_repo = os.getenv("POLYPLOT_HF_DATASET_REPO", "ckmah/polyplot")
-    dataset_file = os.getenv("POLYPLOT_HF_DATASET_FILE", "liver_crop.parquet")
-    dataset_ref = os.getenv(
-        "POLYPLOT_HF_DATASET_REF", "92678be92f8e0b06fc2a32b53885c4fdf3419ee3"
+    parquet_url = os.getenv(
+        "POLYPLOT_PARQUET_URL",
+        "https://huggingface.co/datasets/ckmah/polyplot/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop.parquet",
     )
-    data_url = os.getenv(
-        "POLYPLOT_HF_PARQUET_URL",
-        f"https://huggingface.co/datasets/{dataset_repo}/resolve/{urllib.parse.quote(dataset_ref, safe='')}/{dataset_file}",
-    )
-    hf_token = os.getenv("HF_TOKEN")
-    return data_url, gpd, hf_token, po
+    return gpd, parquet_url, po
 
 
 @app.cell
-def _(data_url, gpd, hf_token):
+def _(gpd, parquet_url):
     """Load dataset from Hugging Face only (no fallbacks)."""
-    storage_options = None
-    if hf_token and "huggingface.co" in data_url:
-        storage_options = {"Authorization": f"Bearer {hf_token}"}
-    gdf = gpd.read_parquet(data_url, storage_options=storage_options)
+    gdf = gpd.read_parquet(parquet_url)
     return (gdf,)
 
 
