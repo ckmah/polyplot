@@ -34,7 +34,7 @@ class MeshifyInfo(TypedDict):
 
 def meshify(
     gdf: gpd.GeoDataFrame,
-    out_dir: str | Path = ".polyplot",
+    out_dir: str | Path = ".polyrender",
     *,
     smooth: bool = True,
     use_cache: bool = True,
@@ -51,7 +51,7 @@ def meshify(
 
     Args:
         gdf: GeoDataFrame with columns ``cell_id``, ``ZIndex``, and ``geometry``.
-        out_dir: Root cache directory (default ``.polyplot`` under the process cwd).
+        out_dir: Root cache directory (default ``.polyrender`` under the process cwd).
         smooth: If ``True``, apply 3D Taubin smoothing (1 iteration); if ``False``, none.
         use_cache: If ``True`` and this fingerprint already exists, load ``tiles.json`` and skip rebuild.
         show_progress: If ``True`` and running in marimo, show a progress bar while building tiles.
@@ -64,9 +64,9 @@ def meshify(
     ``tiles.json`` mtime, capped). The current digest and any shard still served
     by an active :func:`plot` tile server are never removed.
     """
-    from polyplot._cache import gdf_cache_key, prune_stale_cache_shards
-    from polyplot._preprocess import preprocess_gdf
-    from polyplot._tile_export import export_tiles
+    from polyrender._cache import gdf_cache_key, prune_stale_cache_shards
+    from polyrender._preprocess import preprocess_gdf
+    from polyrender._tile_export import export_tiles
 
     root = Path(out_dir).expanduser().resolve()
     fp = gdf_cache_key(gdf, smooth)
@@ -140,12 +140,12 @@ def plot(
         max_concurrent_fetches: Maximum parallel HTTP fetches for tile GLBs.
 
     Returns:
-        A marimo ``anywidget`` UI element wrapping :class:`~polyplot.PolyFiberWidget`.
+        A marimo ``anywidget`` UI element wrapping :class:`~polyrender.PolyRenderWidget`.
     """
     import base64
     import marimo as mo
     import numpy as np
-    from polyplot._widget import PolyFiberWidget
+    from polyrender._widget import PolyRenderWidget
 
     # Minimap payload: centroid per cell_id (XY only), packed as float32 then base64.
     # Use area-weighted centroids across slices to better match the full footprint.
@@ -164,11 +164,11 @@ def plot(
     centroids_xy_b64 = base64.b64encode(cxy.tobytes()).decode("ascii")
     centroids_cell_ids_json = json.dumps([str(x) for x in grp.index.tolist()], separators=(",", ":"))
 
-    from polyplot._tile_server import get_or_start
+    from polyrender._tile_server import get_or_start
 
     tiles_info = meshify(
         gdf,
-        ".polyplot",
+        ".polyrender",
         smooth=smooth,
         use_cache=use_cache,
         show_progress=show_progress,
@@ -183,7 +183,7 @@ def plot(
     else:
         orbit_cap = float(max_orbit_distance) if max_orbit_distance is not None else 0.0
 
-    widget_model = PolyFiberWidget(
+    widget_model = PolyRenderWidget(
         tile_server_url=srv.url,
         tiles_json_path="tiles.json",
         bbox=tiles_info["scene_bbox"],

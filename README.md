@@ -1,10 +1,10 @@
-# polyplot
+# polyrender
 
 `Three Fiber`–based [anywidget](https://anywidget.dev/) for **2.5D** polygons: preprocess stacked 2D outlines (per `cell_id` and `ZIndex`), build triangulated meshes, export spatial GLB tiles, and view them in the browser with a local tile server and WebGL widget.
 
-![polyplot viewer showing colorful 3D cell meshes](assets/viewer.jpg)
+![polyrender viewer showing colorful 3D cell meshes](assets/viewer.jpg)
 
-**Documentation (Zensical):** [ckmah.github.io/polyplot](https://ckmah.github.io/polyplot/)
+**Documentation (Zensical):** [ckmah.github.io/polyrender](https://ckmah.github.io/polyrender/)
 
 ## Requirements
 
@@ -38,18 +38,18 @@ uv sync --group dev
 uv run marimo edit quickstart.py
 ```
 
-[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/ckmah/polyplot/blob/main/quickstart.py)
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/ckmah/polyrender/blob/main/quickstart.py)
 
 ## Usage
 
 ```python
-import polyplot as po
+import polyrender as po
 
-tiles_info = po.meshify(gdf)  # default cache: ./.polyplot/<hash>/
+tiles_info = po.meshify(gdf)  # default cache: ./.polyrender/<hash>/
 po.plot(gdf)  # meshifies from cache if needed; wireframe / opacity / BG in the viewer UI
 ```
 
-- **`meshify`**: preprocess a GeoDataFrame (`cell_id`, `ZIndex`, `geometry`), write `tiles/` and `tiles.json` under `.polyplot/<content hash>/` by default (override with `out_dir=...`). Use `smooth=False` for no Taubin smoothing, `use_cache=False` to force a rebuild.
+- **`meshify`**: preprocess a GeoDataFrame (`cell_id`, `ZIndex`, `geometry`), write `tiles/` and `tiles.json` under `.polyrender/<content hash>/` by default (override with `out_dir=...`). Use `smooth=False` for no Taubin smoothing, `use_cache=False` to force a rebuild.
 - **`plot`**: calls `meshify` when needed, starts or reuses a local tile server, and returns a marimo `anywidget` viewer. Wireframe, opacity, and background are adjusted in the widget toolbar, not via Python.
 
 ## Full demo (development notebook)
@@ -70,10 +70,10 @@ uv run python scripts/make_liver_subset.py
 
 ## Development
 
-The Python package lives in the `polyplot/` directory. Optional: install [gltfpack](https://github.com/zeux/meshopt) on your PATH for smaller GLB files (compression is enabled inside `meshify`).
+The Python package lives in the `polyrender/` directory. Optional: install [gltfpack](https://github.com/zeux/meshopt) on your PATH for smaller GLB files (compression is enabled inside `meshify`).
 
 ## Repository
 
-[github.com/ckmah/polyplot](https://github.com/ckmah/polyplot)
+[github.com/ckmah/polyrender](https://github.com/ckmah/polyrender)
 
 To publish pre-rendered molab sessions, run from the repo root: `uvx marimo export session quickstart.py` (and similarly for `dev/full_demo.py` if desired).

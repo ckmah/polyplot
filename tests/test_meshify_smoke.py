@@ -7,7 +7,7 @@ from pathlib import Path
 import geopandas as gpd
 import shapely.geometry as sg
 
-from polyplot._api import meshify
+from polyrender._api import meshify
 
 
 def test_meshify_writes_tiles_json_and_glbs():

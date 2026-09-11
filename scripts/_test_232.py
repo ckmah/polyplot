@@ -1,8 +1,8 @@
 """Debug exp 232: test bulk array extract timing."""
-import time, geopandas as gpd, polyplot as po
-from polyplot._preprocess import preprocess_gdf
-from polyplot._tile_export import auto_tile_size, compute_tile_grid, _build_tile_data
-from polyplot._mesh_build import _cell_max_turning, cell_color, _collect_rings_arrays
+import time, geopandas as gpd, polyrender as po
+from polyrender._preprocess import preprocess_gdf
+from polyrender._tile_export import auto_tile_size, compute_tile_grid, _build_tile_data
+from polyrender._mesh_build import _cell_max_turning, cell_color, _collect_rings_arrays
 from collections import defaultdict
 import numpy as np
 

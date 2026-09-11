@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 # Bump when tile format / mesh pipeline changes invalidate old caches.
-_CACHE_VERSION = b"polyplot_cache_v6\n"
+_CACHE_VERSION = b"polyrender_cache_v6\n"
 
 # SHA256 hex directory names under the cache root.
 _SHA256_DIR = re.compile(r"^[0-9a-f]{64}$")
@@ -38,7 +38,7 @@ def _protected_digests(root: Path) -> set[str]:
     """Digests under ``root`` that must not be pruned (active HTTP tile server)."""
     out: set[str] = set()
     try:
-        from polyplot._tile_server import get_active_tile_server
+        from polyrender._tile_server import get_active_tile_server
 
         srv = get_active_tile_server()
         if srv is None:

@@ -1,6 +1,6 @@
 # Autoresearch
 
-Experiment drivers and benchmarks for the meshify pipeline. This tree is **not** part of the installable `polyplot` package.
+Experiment drivers and benchmarks for the meshify pipeline. This tree is **not** part of the installable `polyrender` package.
 
 | Path | Role |
 |------|------|

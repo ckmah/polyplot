@@ -2,7 +2,7 @@
 
 ## Data model
 
-`polyplot` expects a [GeoDataFrame](https://geopandas.org/) with at least:
+`polyrender` expects a [GeoDataFrame](https://geopandas.org/) with at least:
 
 - `cell_id` – stable identifier for each biological cell (or object).
 - `ZIndex` – ordering along the stack (height or slice).
@@ -14,19 +14,19 @@ Each row is one 2D outline; multiple rows per `cell_id` with different `ZIndex` 
 
 ```python
 import geopandas as gpd
-import polyplot as po
+import polyrender as po
 
 gdf = gpd.read_parquet("sample_data/liver_crop_sample.parquet")
 info = po.meshify(
     gdf,
-    out_dir=".polyplot",
+    out_dir=".polyrender",
     smooth=True,
     use_cache=True,
     show_progress=True,
 )
 ```
 
-- Writes `**tiles.json**` and per-tile **GLB** files under a content-hashed subfolder of `out_dir` (default `.polyplot`).
+- Writes `**tiles.json**` and per-tile **GLB** files under a content-hashed subfolder of `out_dir` (default `.polyrender`).
 - `smooth` – 3D Taubin smoothing (on) or raw surfaces (off).
 - `use_cache` – if the same fingerprint was built before, reuses the cache and sets `_cache_hit` in the return value.
 - `show_progress` – in marimo, a progress display while building.

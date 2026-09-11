@@ -4,7 +4,7 @@
 #   "marimo>=0.22",
 #   "geopandas>=1.0",
 #   "pyarrow",
-#   "polyplot @ git+https://github.com/ckmah/polyplot.git@ec17ca181279b30b4b2befddb15d5c15d118b3b0",
+#   "polyrender @ git+https://github.com/ckmah/polyrender.git@ed2f47e954ecf0ac846bca10668a2754b1a7725e",
 # ]
 # ///
 
@@ -21,11 +21,11 @@ def _():
 
     import geopandas as gpd
     import marimo as mo
-    import polyplot as po
+    import polyrender as po
 
     parquet_url = os.getenv(
-        "POLYPLOT_PARQUET_URL",
-        "https://huggingface.co/datasets/ckmah/polyplot/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop_sample.parquet",
+        "POLYRENDER_PARQUET_URL",
+        "https://huggingface.co/datasets/ckmah/polyrender/resolve/92678be92f8e0b06fc2a32b53885c4fdf3419ee3/liver_crop_sample.parquet",
     )
     return gpd, mo, parquet_url, po, textwrap
 
@@ -50,12 +50,12 @@ def _(gpd, mo, parquet_url, po, textwrap):
     intro = mo.md(
         textwrap.dedent(
             f"""
-            # Polyplot quick start
+            # Polyrender quick start
 
             This notebook loads sample data from Hugging Face only, so it works
             in hosted MoLab sessions where only this notebook file is copied.
 
-            Set `POLYPLOT_PARQUET_URL` to any public parquet URL.
+            Set `POLYRENDER_PARQUET_URL` to any public parquet URL.
             Current source: `{parquet_url}`
 
             Tip: In `on_demand=True` mode, click a cell in the minimap to build a
