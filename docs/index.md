@@ -2,9 +2,9 @@
 icon: lucide/rocket
 ---
 
-# Polyplot
+# Polyrender
 
-**Polyplot** is a [Three.js](https://threejs.org/) (React Three Fiber) [anywidget](https://anywidget.dev/) for **2.5D** polygon stacks: it preprocesses stacked 2D outlines per `cell_id` and `ZIndex`, builds triangulated meshes, exports **GLB** tiles, and serves them to a **WebGL** viewer in the browser (marimo, Jupyter, and similar).
+**Polyrender** is a [Three.js](https://threejs.org/) (React Three Fiber) [anywidget](https://anywidget.dev/) for **2.5D** polygon stacks: it preprocesses stacked 2D outlines per `cell_id` and `ZIndex`, builds triangulated meshes, exports **GLB** tiles, and serves them to a **WebGL** viewer in the browser (marimo, Jupyter, and similar).
 
 - [**Get started**](get-started.md) – install, sample data, and the quickstart notebook.
 - [**User guide**](user-guide.md) – `meshify`, `plot`, and caching.
