@@ -32,7 +32,20 @@ def _():
 
 @app.cell
 def _(gpd, mo, parquet_url, po, textwrap):
-    gdf = gpd.read_parquet(parquet_url)
+    import pathlib
+    import tempfile
+    import urllib.parse
+    import urllib.request
+
+    scheme = urllib.parse.urlparse(parquet_url).scheme.lower()
+    if scheme in {"http", "https"}:
+        with urllib.request.urlopen(parquet_url, timeout=120) as response:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                parquet_path = pathlib.Path(temp_dir) / "dataset.parquet"
+                parquet_path.write_bytes(response.read())
+                gdf = gpd.read_parquet(parquet_path)
+    else:
+        gdf = gpd.read_parquet(parquet_url)
 
     intro = mo.md(
         textwrap.dedent(
