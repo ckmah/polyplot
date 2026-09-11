@@ -32,7 +32,7 @@ jobs:
           print("version:", project["version"])
           PY
 
-      - run: uv sync --group dev
+      - run: uv sync --extra test
       - run: uv run pytest
       - run: uv build
       - run: uv publish

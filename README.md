@@ -19,6 +19,19 @@ From the repository root:
 uv sync
 ```
 
+Optional extras:
+
+```bash
+# test dependencies
+uv sync --extra test
+
+# docs tooling
+uv sync --extra docs
+
+# local development group (pytest + zensical)
+uv sync --group dev
+```
+
 ## Quick start (marimo)
 
 ```bash

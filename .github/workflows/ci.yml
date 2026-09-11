@@ -16,6 +16,6 @@ jobs:
         with:
           enable-cache: true
 
-      - run: uv sync --group dev
+      - run: uv sync --extra test
       - run: uv run pytest
       - run: uv build

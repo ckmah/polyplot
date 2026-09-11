@@ -13,6 +13,19 @@ cd polyplot
 uv sync
 ```
 
+Optional extras:
+
+```bash
+# run tests
+uv sync --extra test
+
+# docs tooling
+uv sync --extra docs
+
+# local development group (pytest + zensical)
+uv sync --group dev
+```
+
 ## Sample data
 
 The repository includes a small **`sample_data/liver_crop_sample.parquet`** (about 50 cells in one spatial patch) for demos and CI. To build a new subset from a local full `liver_crop.parquet`, use:

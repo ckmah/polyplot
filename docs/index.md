@@ -8,7 +8,7 @@ icon: lucide/rocket
 
 - [**Get started**](get-started.md) – install, sample data, and the quickstart notebook.
 - [**User guide**](user-guide.md) – `meshify`, `plot`, and caching.
-- [PyPI / source](https://github.com/ckmah/polyplot) – `uv sync` from the repository root; API docstrings in `polyplot/`.
+- [PyPI / source](https://github.com/ckmah/polyplot) – `uv sync` from the repository root (`--extra test` / `--extra docs` as needed); API docstrings in `polyplot/`.
 
 ## At a glance
 

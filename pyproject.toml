@@ -12,17 +12,23 @@ dependencies = [
     "shapely>=2.0",
     "numpy>=1.26",
     "mapbox-earcut>=1.0",
-    "matplotlib>=3.10.8",
     "pygltflib>=1.15",
     "numba>=0.65.0",
     "trimesh>=4.11.5",
-    "scipy>=1.17.1",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.4.0",
+]
+docs = [
     "zensical>=0.0.36",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.0",
+    "zensical>=0.0.36",
 ]
 
 [tool.pytest.ini_options]
